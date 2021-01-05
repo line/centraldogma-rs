@@ -1,8 +1,6 @@
-use crate::{client, Client};
+use crate::client::{self, status_unwrap, Client};
 
-use reqwest::Method;
-use reqwest::Body;
-use reqwest::Response;
+use reqwest::{Body, Method};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 
@@ -25,30 +23,15 @@ pub struct Project {
     pub created_at: String,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct ErrorMessage {
-    message: String,
-}
-
-async fn status_unwrap(resp: Response) -> Result<Response, client::Error> {
-    match resp.status().as_u16() {
-        code if code < 200 || code >= 300 => {
-            let err_msg = resp.json::<ErrorMessage>().await?;
-
-            Err(client::Error::ErrorResponse(code, err_msg.message))
-        }
-        _ => {
-            Ok(resp)
-        }
-    }
-}
-
 impl Project {
     pub async fn list(client: &Client) -> Result<Vec<Project>, client::Error> {
         let req = client.new_request(Method::GET, PROJECT_SERVICE_PATH, None)?;
         let resp = client.request(req).await?;
         let ok_resp = status_unwrap(resp).await?;
+
+        if let Some(0) = ok_resp.content_length() {
+            return Ok(Vec::new());
+        }
         let result = ok_resp.json().await?;
 
         Ok(result)
@@ -58,7 +41,7 @@ impl Project {
     pub async fn list_removed(client: &Client) -> Result<Vec<String>, client::Error> {
         #[derive(Deserialize)]
         struct RemovedProject {
-            name: String
+            name: String,
         }
         let path = format!("{}?status=removed", PROJECT_SERVICE_PATH);
         let req = client.new_request(Method::GET, path, None)?;
@@ -74,7 +57,7 @@ impl Project {
     pub async fn create(client: &Client, name: &str) -> Result<Project, client::Error> {
         #[derive(Serialize)]
         struct CreateProject<'a> {
-            name: &'a str
+            name: &'a str,
         };
         let body: Vec<u8> = serde_json::to_vec(&CreateProject { name })?;
         let body = Body::from(body);
