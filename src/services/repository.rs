@@ -1,8 +1,4 @@
-use crate::{
-    client::{self, status_unwrap, Client},
-    model::Repository,
-    services::consts,
-};
+use crate::{client::{self, status_unwrap, Client}, model::Repository, path};
 
 use reqwest::{Body, Method};
 use serde::Serialize;
@@ -14,13 +10,7 @@ pub async fn list_by_project_name(
 ) -> Result<Vec<Repository>, client::Error> {
     let req = client.new_request(
         Method::GET,
-        format!(
-            "{}/{}/{}/{}",
-            consts::PATH_PREFIX,
-            consts::PROJECT_PATH,
-            project_name,
-            consts::REPO_PATH
-        ),
+        path::repos_path(project_name),
         None,
     )?;
 
@@ -37,13 +27,7 @@ pub async fn list_removed_by_project_name(
 ) -> Result<Vec<Repository>, client::Error> {
     let req = client.new_request(
         Method::GET,
-        format!(
-            "{}/{}/{}/{}?status=removed",
-            consts::PATH_PREFIX,
-            consts::PROJECT_PATH,
-            project_name,
-            consts::REPO_PATH
-        ),
+        path::removed_repos_path(project_name),
         None,
     )?;
 
@@ -71,13 +55,7 @@ pub async fn create(
 
     let req = client.new_request(
         Method::POST,
-        format!(
-            "{}/{}/{}/{}",
-            consts::PATH_PREFIX,
-            consts::PROJECT_PATH,
-            project_name,
-            consts::REPO_PATH
-        ),
+        path::repos_path(project_name),
         Some(body),
     )?;
 
@@ -96,14 +74,7 @@ pub async fn remove(
 ) -> Result<(), client::Error> {
     let req = client.new_request(
         Method::DELETE,
-        format!(
-            "{}/{}/{}/{}/{}",
-            consts::PATH_PREFIX,
-            consts::PROJECT_PATH,
-            project_name,
-            consts::REPO_PATH,
-            repo_name
-        ),
+        path::repo_path(project_name, repo_name),
         None
     )?;
 
@@ -124,14 +95,7 @@ pub async fn unremove(
     let body = Body::from(body);
     let req = client.new_request(
         Method::PATCH,
-        format!(
-            "{}/{}/{}/{}/{}",
-            consts::PATH_PREFIX,
-            consts::PROJECT_PATH,
-            project_name,
-            consts::REPO_PATH,
-            repo_name
-        ),
+        path::repo_path(project_name, repo_name),
         Some(body)
     )?;
 
@@ -149,14 +113,7 @@ pub async fn purge(
 ) -> Result<(), client::Error> {
     let req = client.new_request(
         Method::DELETE,
-        format!(
-            "{}/{}/{}/{}/{}/removed",
-            consts::PATH_PREFIX,
-            consts::PROJECT_PATH,
-            project_name,
-            consts::REPO_PATH,
-            repo_name
-        ),
+        path::removed_repo_path(project_name, repo_name),
         None
     )?;
 

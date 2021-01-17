@@ -26,3 +26,20 @@ pub struct Repository {
     pub created_at: Option<String>,
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+pub enum EntryType {
+    JSON,
+    TEXT,
+    DIRECTORY
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Entry {
+    pub path: String,
+    pub r#type: EntryType,
+    pub content: Option<Vec<u8>>,
+    pub revision: Option<u64>,
+    pub url: Option<String>,
+    pub modified_at: Option<String>,
+}

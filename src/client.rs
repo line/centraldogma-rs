@@ -42,13 +42,22 @@ impl Client {
         Ok(self.http_client.execute(req).await?)
     }
 
-    pub fn new_request<S: AsRef<str>>(
+    pub(crate) fn new_request<S: AsRef<str>>(
         &self,
         method: reqwest::Method,
         path: S,
         body: Option<Body>,
     ) -> Result<reqwest::Request, Error> {
-        let mut req = Request::new(method, self.base_url.join(path.as_ref())?);
+        self.new_request_inner(method, path.as_ref(), body)
+    }
+
+    fn new_request_inner(
+        &self,
+        method: reqwest::Method,
+        path: &str,
+        body: Option<Body>,
+    ) -> Result<reqwest::Request, Error> {
+        let mut req = Request::new(method, self.base_url.join(path)?);
 
         let mut header_value = HeaderValue::from_str(&format!(
             "Bearer {}",
@@ -73,6 +82,7 @@ impl Client {
 
         Ok(req)
     }
+
 }
 
 #[derive(Debug, Serialize, Deserialize)]
