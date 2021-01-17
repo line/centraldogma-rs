@@ -82,7 +82,6 @@ impl Client {
 
         Ok(req)
     }
-
 }
 
 #[derive(Debug, Serialize, Deserialize)]

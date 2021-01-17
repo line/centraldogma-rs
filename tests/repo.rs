@@ -1,7 +1,7 @@
 use centraldogma as cd;
 
-use std::{panic, pin::Pin};
 use futures::future::{Future, FutureExt};
+use std::{panic, pin::Pin};
 
 use anyhow::{bail, Context, Result};
 
@@ -12,7 +12,7 @@ struct TestContext {
 
 async fn run_test<T>(test: T) -> ()
 where
-    for <'a> T: FnOnce(&'a mut TestContext) -> Pin<Box<dyn Future<Output = Result<()>> + 'a>>,
+    for<'a> T: FnOnce(&'a mut TestContext) -> Pin<Box<dyn Future<Output = Result<()>> + 'a>>,
 {
     let mut ctx = setup().await.expect("Failed to setup for test");
 
@@ -37,10 +37,7 @@ async fn setup() -> Result<TestContext> {
         .await
         .context("Failed to create new project")?;
 
-    Ok(TestContext {
-        client,
-        project,
-    })
+    Ok(TestContext { client, project })
 }
 
 async fn teardown(ctx: TestContext) -> Result<()> {
@@ -55,7 +52,7 @@ async fn teardown(ctx: TestContext) -> Result<()> {
     Ok(())
 }
 
-fn t1<'a>(ctx: &'a mut TestContext) -> Pin<Box<dyn Future<Output = Result<()>> +'a>> {
+fn t1<'a>(ctx: &'a mut TestContext) -> Pin<Box<dyn Future<Output = Result<()>> + 'a>> {
     async move {
         // List repositories
         let repos = cd::repository::list_by_project_name(&ctx.client, &ctx.project.name)
@@ -79,9 +76,10 @@ fn t1<'a>(ctx: &'a mut TestContext) -> Pin<Box<dyn Future<Output = Result<()>> +
             .await
             .context("Failed to remove Repository")?;
 
-        let removed_repos = cd::repository::list_removed_by_project_name(&ctx.client, &ctx.project.name)
-            .await
-            .context("Failed to list removed repositories")?;
+        let removed_repos =
+            cd::repository::list_removed_by_project_name(&ctx.client, &ctx.project.name)
+                .await
+                .context("Failed to list removed repositories")?;
 
         let mut found = false;
         for repo in removed_repos.iter() {
@@ -124,9 +122,10 @@ fn t1<'a>(ctx: &'a mut TestContext) -> Pin<Box<dyn Future<Output = Result<()>> +
             .await
             .context("Failed to purge removed Repository")?;
 
-        let removed_repos = cd::repository::list_removed_by_project_name(&ctx.client, &ctx.project.name)
-            .await
-            .context("Failed to list removed repositories")?;
+        let removed_repos =
+            cd::repository::list_removed_by_project_name(&ctx.client, &ctx.project.name)
+                .await
+                .context("Failed to list removed repositories")?;
 
         let mut found = false;
         for repo in removed_repos.iter() {
@@ -138,9 +137,9 @@ fn t1<'a>(ctx: &'a mut TestContext) -> Pin<Box<dyn Future<Output = Result<()>> +
             bail!("Purged repo showed in removed repo list");
         }
 
-
         Ok(())
-    }.boxed()
+    }
+    .boxed()
 }
 
 #[cfg(test)]

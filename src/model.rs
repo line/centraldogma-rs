@@ -1,4 +1,4 @@
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -30,7 +30,7 @@ pub struct Repository {
 pub enum EntryType {
     JSON,
     TEXT,
-    DIRECTORY
+    DIRECTORY,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
