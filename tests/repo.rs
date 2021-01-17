@@ -27,13 +27,13 @@ async fn setup() -> Result<TestContext> {
     let client = cd::Client::new_with_token("http://localhost:36462".to_string(), None)
         .await
         .context("Failed to create client")?;
-    let projects = cd::Project::list(&client)
+    let projects = cd::project::list(&client)
         .await
         .context("Failed to list projects")?;
     assert_eq!(0, projects.len());
 
     let prj_name = "TestProject";
-    let project = cd::Project::create(&client, prj_name)
+    let project = cd::project::create(&client, prj_name)
         .await
         .context("Failed to create new project")?;
 
@@ -44,11 +44,11 @@ async fn setup() -> Result<TestContext> {
 }
 
 async fn teardown(ctx: TestContext) -> Result<()> {
-    cd::Project::remove(&ctx.client, &ctx.project.name)
+    cd::project::remove(&ctx.client, &ctx.project.name)
         .await
         .context("Failed to remove the project")?;
 
-    cd::Project::purge(&ctx.client, &ctx.project.name)
+    cd::project::purge(&ctx.client, &ctx.project.name)
         .await
         .context("Failed to purge the project")?;
 
@@ -58,7 +58,7 @@ async fn teardown(ctx: TestContext) -> Result<()> {
 fn t1<'a>(ctx: &'a mut TestContext) -> Pin<Box<dyn Future<Output = Result<()>> +'a>> {
     async move {
         // List repositories
-        let repos = cd::Repository::list_by_project_name(&ctx.client, &ctx.project.name)
+        let repos = cd::repository::list_by_project_name(&ctx.client, &ctx.project.name)
             .await
             .context("Failed to list repositories from project")?;
         if repos.len() != 2 {
@@ -67,7 +67,7 @@ fn t1<'a>(ctx: &'a mut TestContext) -> Pin<Box<dyn Future<Output = Result<()>> +
 
         // Create new repository
         let repo_name = "TestRepo";
-        let new_repo = cd::Repository::create(&ctx.client, &ctx.project.name, repo_name)
+        let new_repo = cd::repository::create(&ctx.client, &ctx.project.name, repo_name)
             .await
             .context("Failed to create new Repository")?;
         if repo_name != new_repo.name {
@@ -75,11 +75,11 @@ fn t1<'a>(ctx: &'a mut TestContext) -> Pin<Box<dyn Future<Output = Result<()>> +
         }
 
         // Remove created repository
-        cd::Repository::remove(&ctx.client, &ctx.project.name, repo_name)
+        cd::repository::remove(&ctx.client, &ctx.project.name, repo_name)
             .await
             .context("Failed to remove Repository")?;
 
-        let removed_repos = cd::Repository::list_removed_by_project_name(&ctx.client, &ctx.project.name)
+        let removed_repos = cd::repository::list_removed_by_project_name(&ctx.client, &ctx.project.name)
             .await
             .context("Failed to list removed repositories")?;
 
@@ -94,14 +94,14 @@ fn t1<'a>(ctx: &'a mut TestContext) -> Pin<Box<dyn Future<Output = Result<()>> +
         }
 
         // Unremove removed repository
-        let unremoved_repo = cd::Repository::unremove(&ctx.client, &ctx.project.name, repo_name)
+        let unremoved_repo = cd::repository::unremove(&ctx.client, &ctx.project.name, repo_name)
             .await
             .context("Failed to unremove removed Repository")?;
         if unremoved_repo.name != repo_name {
             bail!("Invalid unremove");
         }
 
-        let repos = cd::Repository::list_by_project_name(&ctx.client, &ctx.project.name)
+        let repos = cd::repository::list_by_project_name(&ctx.client, &ctx.project.name)
             .await
             .context("Failed to list repositories from project")?;
 
@@ -115,16 +115,16 @@ fn t1<'a>(ctx: &'a mut TestContext) -> Pin<Box<dyn Future<Output = Result<()>> +
             bail!("Unremoved repo not showed in repo list");
         }
 
-        cd::Repository::remove(&ctx.client, &ctx.project.name, repo_name)
+        cd::repository::remove(&ctx.client, &ctx.project.name, repo_name)
             .await
             .context("Failed to remove Repository")?;
 
         // Purge removed repository
-        cd::Repository::purge(&ctx.client, &ctx.project.name, repo_name)
+        cd::repository::purge(&ctx.client, &ctx.project.name, repo_name)
             .await
             .context("Failed to purge removed Repository")?;
 
-        let removed_repos = cd::Repository::list_removed_by_project_name(&ctx.client, &ctx.project.name)
+        let removed_repos = cd::repository::list_removed_by_project_name(&ctx.client, &ctx.project.name)
             .await
             .context("Failed to list removed repositories")?;
 

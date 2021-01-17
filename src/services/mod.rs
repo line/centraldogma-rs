@@ -1,6 +1,3 @@
 pub mod consts;
-mod project;
-mod repository;
-
-pub use project::{Author, Project};
-pub use repository::Repository;
+pub mod project;
+pub mod repository;
