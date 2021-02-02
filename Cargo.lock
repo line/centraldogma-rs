@@ -47,6 +47,7 @@ name = "centraldogma"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "form_urlencoded",
  "futures",
  "reqwest",
  "serde",

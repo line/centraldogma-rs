@@ -17,6 +17,8 @@ pub enum Error {
     InvalidURL(#[from] url::ParseError),
     #[error("Failed to parse json")]
     ParseError(#[from] serde_json::Error),
+    #[error("Invalid params: {0}")]
+    InvalidParams(&'static str),
     #[error("Error response: [{0}] {1}")]
     ErrorResponse(u16, String),
 }
@@ -93,7 +95,9 @@ struct ErrorMessage {
 pub async fn status_unwrap(resp: Response) -> Result<Response, Error> {
     match resp.status().as_u16() {
         code if code < 200 || code >= 300 => {
-            let err_msg = resp.json::<ErrorMessage>().await?;
+            let err_body = resp.text().await?;
+            let err_msg: ErrorMessage = serde_json::from_str(&err_body)
+                .unwrap_or_else(|_| ErrorMessage { message: err_body });
 
             Err(Error::ErrorResponse(code, err_msg.message))
         }

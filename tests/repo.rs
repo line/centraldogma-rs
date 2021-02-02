@@ -1,9 +1,8 @@
 use centraldogma as cd;
 
+use anyhow::{bail, Context, Result};
 use futures::future::{Future, FutureExt};
 use std::{panic, pin::Pin};
-
-use anyhow::{bail, Context, Result};
 
 struct TestContext {
     client: cd::Client,
