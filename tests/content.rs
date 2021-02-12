@@ -1,24 +1,17 @@
+#[macro_use]
+mod utils;
+
+use centraldogma as cd;
 use cd::{
-    Change, ChangeContent, CommitDetail, CommitMessage, Entry, EntryContent, PushResult, Query,
+    Change, ChangeContent, CommitDetail, CommitMessage, Entry, EntryContent, Query,
     QueryType,
 };
-use centraldogma as cd;
 
 use std::{panic, pin::Pin};
 
 use anyhow::{bail, Context, Result};
 use futures::future::{Future, FutureExt};
 use serde_json::json;
-
-macro_rules! here {
-    ($e:expr) => {
-        format!(
-            "{}: {}",
-            concat!("at ", file!(), ":", line!(), ":", column!()),
-            $e
-        );
-    };
-}
 
 struct TestContext {
     client: cd::Client,

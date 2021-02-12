@@ -10,11 +10,17 @@ use reqwest::{Body, Method};
 use serde::Serialize;
 
 fn normalize_path_pattern(path_pattern: &str) -> Cow<str> {
-    if !path_pattern.is_empty() && !path_pattern.starts_with("/") {
-        Cow::Owned(format!("/**/{}", path_pattern))
-    } else {
-        Cow::Borrowed(path_pattern)
+    if path_pattern.is_empty() {
+        return Cow::Borrowed("/**");
     }
+    if path_pattern.starts_with("**") {
+        return Cow::Owned(format!("/{}", path_pattern));
+    }
+    if path_pattern.starts_with("/") {
+        return Cow::Owned(format!("/**/{}", path_pattern));
+    }
+
+    Cow::Borrowed(path_pattern)
 }
 
 pub async fn list_files(

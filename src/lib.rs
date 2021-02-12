@@ -8,4 +8,4 @@ pub use model::{
     Author, Change, ChangeContent, CommitDetail, CommitMessage, Entry, EntryContent, Project,
     PushResult, Query, QueryType, Repository,
 };
-pub use services::{content, project, repository};
+pub use services::{content, project, repository, watch};

@@ -108,3 +108,10 @@ pub struct Change {
     #[serde(flatten)]
     pub content: ChangeContent,
 }
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WatchResult {
+    pub revision: i64,
+    pub entry: Option<Entry>,
+}

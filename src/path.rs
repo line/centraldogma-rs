@@ -207,3 +207,36 @@ pub(crate) fn contents_push_path(
         .append_pair("revision", &base_revision.to_string())
         .finish()
 }
+
+pub(crate) fn content_watch_path(
+    project_name: &str,
+    repo_name: &str,
+    query: &Query,
+) -> Option<String> {
+    let path = if query.path.starts_with("/") {
+        &query.path[1..]
+    } else {
+        &query.path
+    };
+
+    let url = format!(
+        "{}/projects/{}/repos/{}/contents/{}?",
+        PATH_PREFIX, project_name, repo_name, path
+    );
+
+    let len = url.len();
+    let mut serializer = form_urlencoded::Serializer::for_suffix(url, len);
+
+    if let QueryType::JsonPath(expressions) = &query.r#type {
+        if !query.path.to_lowercase().ends_with("json") {
+            return None;
+        }
+
+        for expression in expressions.iter() {
+            serializer.append_pair("jsonpath", expression);
+        }
+    }
+
+    Some(serializer.finish())
+}
+
