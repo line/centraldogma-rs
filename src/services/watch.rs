@@ -59,8 +59,10 @@ fn watch_stream(
                 Ok(r) => { r },
                 Err(_) => { state.failed_count += 1; continue; },
             };
+            dbg!(&req);
 
             let resp = request_watch(&state.client, req).await;
+            dbg!(&resp);
             let next_delay = match resp {
                 // Send Ok data out
                 Ok(Some(watch_result)) => {
@@ -100,6 +102,17 @@ pub fn watch_file_stream(
 ) -> Result<impl Stream<Item = WatchResult>, Error> {
     let p = path::content_watch_path(project_name, repo_name, query)
         .ok_or_else(|| Error::InvalidParams("JsonPath type only applicable to .json file"))?;
+
+    Ok(watch_stream(client, p))
+}
+
+pub fn watch_repo_stream(
+    client: Client,
+    project_name: &str,
+    repo_name: &str,
+    path_pattern: &str,
+) -> Result<impl Stream<Item = WatchResult>, Error> {
+    let p = path::repo_watch_path(project_name, repo_name, path_pattern);
 
     Ok(watch_stream(client, p))
 }

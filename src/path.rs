@@ -4,6 +4,20 @@ use crate::model::{Query, QueryType};
 
 const PATH_PREFIX: &str = "/api/v1";
 
+fn normalize_path_pattern(path_pattern: &str) -> Cow<str> {
+    if path_pattern.is_empty() {
+        return Cow::Borrowed("/**");
+    }
+    if path_pattern.starts_with("**") {
+        return Cow::Owned(format!("/{}", path_pattern));
+    }
+    if !path_pattern.starts_with("/") {
+        return Cow::Owned(format!("/**/{}", path_pattern));
+    }
+
+    Cow::Borrowed(path_pattern)
+}
+
 pub(crate) fn projects_path() -> String {
     format!("{}/projects", PATH_PREFIX)
 }
@@ -51,9 +65,10 @@ pub(crate) fn list_contents_path(
     revision: i64,
     path_pattern: &str,
 ) -> String {
+    let path_pattern = normalize_path_pattern(path_pattern);
     let url = format!(
-        "{}/projects/{}/repos/{}/list/{}?",
-        PATH_PREFIX, project_name, repo_name, path_pattern
+        "{}/projects/{}/repos/{}/list{}?",
+        PATH_PREFIX, project_name, repo_name, &path_pattern
     );
     let len = url.len();
 
@@ -68,8 +83,9 @@ pub(crate) fn contents_path(
     revision: i64,
     path_pattern: &str,
 ) -> String {
+    let path_pattern = normalize_path_pattern(path_pattern);
     let url = format!(
-        "{}/projects/{}/repos/{}/contents/{}?",
+        "{}/projects/{}/repos/{}/contents{}?",
         PATH_PREFIX, project_name, repo_name, path_pattern
     );
     let len = url.len();
@@ -184,9 +200,10 @@ pub(crate) fn contents_compare_path(
         PATH_PREFIX, project_name, repo_name
     );
 
+    let path_pattern = normalize_path_pattern(path_pattern);
     let len = url.len();
     form_urlencoded::Serializer::for_suffix(url, len)
-        .append_pair("pathPattern", path_pattern)
+        .append_pair("pathPattern", &path_pattern)
         .append_pair("from", from)
         .append_pair("to", to)
         .finish()
@@ -240,3 +257,15 @@ pub(crate) fn content_watch_path(
     Some(serializer.finish())
 }
 
+pub(crate) fn repo_watch_path(
+    project_name: &str,
+    repo_name: &str,
+    path_pattern: &str,
+) -> String {
+    let path_pattern = normalize_path_pattern(path_pattern);
+
+    format!(
+        "{}/projects/{}/repos/{}/contents{}",
+        PATH_PREFIX, project_name, repo_name, path_pattern
+    )
+}

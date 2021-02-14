@@ -1,8 +1,10 @@
+#[macro_use]
+mod utils;
 use centraldogma as cd;
 
-use anyhow::{bail, Context, Result};
+use anyhow::{ensure, Context, Result};
 use futures::future::{Future, FutureExt};
-use std::{panic, pin::Pin};
+use std::pin::Pin;
 
 struct TestContext {
     client: cd::Client,
@@ -57,18 +59,14 @@ fn t1<'a>(ctx: &'a mut TestContext) -> Pin<Box<dyn Future<Output = Result<()>> +
         let repos = cd::repository::list_by_project_name(&ctx.client, &ctx.project.name)
             .await
             .context("Failed to list repositories from project")?;
-        if repos.len() != 2 {
-            bail!("New project should have 2 repos");
-        }
+            ensure!(repos.len() == 2, here!("New project should have 2 repos"));
 
         // Create new repository
         let repo_name = "TestRepo";
         let new_repo = cd::repository::create(&ctx.client, &ctx.project.name, repo_name)
             .await
             .context("Failed to create new Repository")?;
-        if repo_name != new_repo.name {
-            bail!("Wrong repo name")
-        }
+        ensure!(repo_name == new_repo.name, here!("Wrong repo name"));
 
         // Remove created repository
         cd::repository::remove(&ctx.client, &ctx.project.name, repo_name)
@@ -86,17 +84,13 @@ fn t1<'a>(ctx: &'a mut TestContext) -> Pin<Box<dyn Future<Output = Result<()>> +
                 found = true;
             }
         }
-        if !found {
-            bail!("Removed repo not showed in removed repo list");
-        }
+        ensure!(found, here!("Removed repo not showed in removed repo list"));
 
         // Unremove removed repository
         let unremoved_repo = cd::repository::unremove(&ctx.client, &ctx.project.name, repo_name)
             .await
             .context("Failed to unremove removed Repository")?;
-        if unremoved_repo.name != repo_name {
-            bail!("Invalid unremove");
-        }
+        ensure!(unremoved_repo.name == repo_name, here!("Invalid unremove"));
 
         let repos = cd::repository::list_by_project_name(&ctx.client, &ctx.project.name)
             .await
@@ -108,9 +102,7 @@ fn t1<'a>(ctx: &'a mut TestContext) -> Pin<Box<dyn Future<Output = Result<()>> +
                 found = true;
             }
         }
-        if !found {
-            bail!("Unremoved repo not showed in repo list");
-        }
+        ensure!(found, here!("Unremoved repo not showed in repo list"));
 
         cd::repository::remove(&ctx.client, &ctx.project.name, repo_name)
             .await
@@ -132,9 +124,7 @@ fn t1<'a>(ctx: &'a mut TestContext) -> Pin<Box<dyn Future<Output = Result<()>> +
                 found = true;
             }
         }
-        if found {
-            bail!("Purged repo showed in removed repo list");
-        }
+        ensure!(!found, here!("Purged repo showed in removed repo list"));
 
         Ok(())
     }

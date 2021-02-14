@@ -7,9 +7,9 @@ use cd::{
     QueryType,
 };
 
-use std::{panic, pin::Pin};
+use std::pin::Pin;
 
-use anyhow::{bail, Context, Result};
+use anyhow::{ensure, Context, Result};
 use futures::future::{Future, FutureExt};
 use serde_json::json;
 
@@ -125,13 +125,10 @@ fn t<'a>(ctx: &'a mut TestContext) -> Pin<Box<dyn Future<Output = Result<()>> + 
             .context(here!("Failed to fetch file content"))?;
 
             println!("File: {:?}", &file);
-            if let EntryContent::Json(json) = file.content {
-                if json != json!({"test_key": "test_value"}) {
-                    bail!(here!("Expect same json content"));
-                }
-            } else {
-                bail!(here!("Expect json content"));
-            }
+            ensure!(
+                matches!(file.content, EntryContent::Json(json) if json == json!({"test_key": "test_value"})),
+                here!("Expect same json content")
+            );
         }
 
         // Get single file jsonpath
@@ -150,13 +147,11 @@ fn t<'a>(ctx: &'a mut TestContext) -> Pin<Box<dyn Future<Output = Result<()>> + 
             .await
             .context(here!("Failed to fetch file content"))?;
             println!("File: {:?}", &file);
-            if let EntryContent::Json(json) = file.content {
-                if json != json!("test_value") {
-                    bail!(here!("Expect same json content"));
-                }
-            } else {
-                bail!(here!("Expect json content"));
-            }
+
+            ensure!(
+                matches!(file.content, EntryContent::Json(json) if json == json!("test_value")),
+                here!("Expect same json content")
+            );
         }
 
         // Get multiple files
@@ -170,9 +165,7 @@ fn t<'a>(ctx: &'a mut TestContext) -> Pin<Box<dyn Future<Output = Result<()>> + 
             )
             .await
             .context(here!("Failed to fetch multiple files"))?;
-            if entries.len() != 1 {
-                bail!(here!("wrong number of entries returned"));
-            }
+            ensure!(entries.len() == 1, here!("wrong number of entries returned"));
 
             let entries = cd::content::get_files(
                 &ctx.client,
@@ -183,17 +176,13 @@ fn t<'a>(ctx: &'a mut TestContext) -> Pin<Box<dyn Future<Output = Result<()>> + 
             )
             .await
             .context(here!("Failed to fetch multiple files"))?;
-            if entries.len() != 2 {
-                bail!(here!("wrong number of entries returned"));
-            }
+            ensure!(entries.len() == 2, here!("wrong number of entries returned"));
 
             println!("Entries: {:?}", &entries);
             let exist = entries.iter().any(|e| {
                 e.path == "/b.txt" && matches!(&e.content, EntryContent::Text(s) if s == "text value\n")
             });
-            if !exist {
-                bail!(here!("Expected value not found"));
-            }
+            ensure!(exist, here!("Expected value not found"));
         }
 
         // Get file diff
@@ -237,18 +226,16 @@ fn t<'a>(ctx: &'a mut TestContext) -> Pin<Box<dyn Future<Output = Result<()>> + 
             .context(here!("Failed to get diff"))?;
             println!("Diff: {:?}", diff);
 
-            if diff.path != "/a.json" {
-                bail!(here!("Diff path incorrect"));
-            }
+            ensure!(diff.path == "/a.json", here!("Diff path incorrect"));
 
             let expected_json = json!({
                 "new_key": ["new_array_item1", "new_array_item2"],
                 "test_key": "updated_value"
             });
-            match diff.content {
-                ChangeContent::UpsertJson(json) if json == expected_json => {},
-                _ => bail!(here!("Diff content incorrect")),
-            }
+            ensure!(
+                matches!(diff.content, ChangeContent::UpsertJson(json) if json == expected_json),
+                here!("Diff content incorrect")
+            );
         }
 
 
@@ -265,9 +252,7 @@ fn t<'a>(ctx: &'a mut TestContext) -> Pin<Box<dyn Future<Output = Result<()>> + 
             .await
             .context(here!("Failed to get diff"))?;
 
-            if diffs.len() != 2 {
-                bail!(here!("Expect 2 diffs"));
-            }
+            ensure!(diffs.len() == 2, here!("Expect 2 diffs"));
         }
 
         Ok(())

@@ -1,5 +1,3 @@
-use std::borrow::Cow;
-
 use crate::{
     client::status_unwrap,
     model::{Change, Commit, CommitMessage, PushResult, Query},
@@ -9,20 +7,6 @@ use crate::{
 use reqwest::{Body, Method};
 use serde::Serialize;
 
-fn normalize_path_pattern(path_pattern: &str) -> Cow<str> {
-    if path_pattern.is_empty() {
-        return Cow::Borrowed("/**");
-    }
-    if path_pattern.starts_with("**") {
-        return Cow::Owned(format!("/{}", path_pattern));
-    }
-    if path_pattern.starts_with("/") {
-        return Cow::Owned(format!("/**/{}", path_pattern));
-    }
-
-    Cow::Borrowed(path_pattern)
-}
-
 pub async fn list_files(
     client: &Client,
     project_name: &str,
@@ -30,7 +14,6 @@ pub async fn list_files(
     revision: i64,
     path_pattern: &str,
 ) -> Result<Vec<Entry>, Error> {
-    let path_pattern = normalize_path_pattern(path_pattern);
     let req = client.new_request(
         Method::GET,
         path::list_contents_path(project_name, repo_name, revision, &path_pattern),
@@ -69,7 +52,6 @@ pub async fn get_files(
     revision: i64,
     path_pattern: &str,
 ) -> Result<Vec<Entry>, Error> {
-    let path_pattern = normalize_path_pattern(path_pattern);
     let req = client.new_request(
         Method::GET,
         path::contents_path(project_name, repo_name, revision, &path_pattern),
@@ -134,12 +116,6 @@ pub async fn get_diffs(
     to: &str,
     path_pattern: &str,
 ) -> Result<Vec<Change>, Error> {
-    let path_pattern = if path_pattern.is_empty() {
-        "/**"
-    } else {
-        path_pattern
-    };
-
     let p = path::contents_compare_path(project_name, repo_name, from, to, path_pattern);
     let req = client.new_request(Method::GET, p, None)?;
 
