@@ -1,6 +1,6 @@
 use std::time::Duration;
 
-use crate::{Client, Error, Query, client::status_unwrap, model::WatchResult, path};
+use crate::{Client, Error, Query, client::status_unwrap, model::{WatchResult, Revision}, path};
 
 use futures::Stream;
 use reqwest::{Method, Request, StatusCode};
@@ -34,7 +34,7 @@ fn delay_time_for(failed_count: usize) -> Duration {
 struct WatchState {
     client: Client,
     path: String,
-    last_known_revision: Option<i64>,
+    last_known_revision: Option<Revision>,
     failed_count: usize,
     success_delay: Option<Duration>,
 }

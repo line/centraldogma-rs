@@ -1,8 +1,4 @@
-use crate::{
-    client::status_unwrap,
-    model::{Change, Commit, CommitMessage, PushResult, Query},
-    path, Client, Entry, Error,
-};
+use crate::{Client, Entry, Error, client::status_unwrap, model::{Change, Commit, CommitMessage, PushResult, Query, Revision}, path};
 
 use reqwest::{Body, Method};
 use serde::Serialize;
@@ -11,7 +7,7 @@ pub async fn list_files(
     client: &Client,
     project_name: &str,
     repo_name: &str,
-    revision: i64,
+    revision: Revision,
     path_pattern: &str,
 ) -> Result<Vec<Entry>, Error> {
     let req = client.new_request(
@@ -31,7 +27,7 @@ pub async fn get_file(
     client: &Client,
     project_name: &str,
     repo_name: &str,
-    revision: i64,
+    revision: Revision,
     query: &Query,
 ) -> Result<Entry, Error> {
     let p = path::content_path(project_name, repo_name, revision, query)
@@ -49,7 +45,7 @@ pub async fn get_files(
     client: &Client,
     project_name: &str,
     repo_name: &str,
-    revision: i64,
+    revision: Revision,
     path_pattern: &str,
 ) -> Result<Vec<Entry>, Error> {
     let req = client.new_request(
@@ -69,12 +65,12 @@ pub async fn get_history(
     client: &Client,
     project_name: &str,
     repo_name: &str,
-    from: &str,
-    to: &str,
+    from_rev: Revision,
+    to_rev: Revision,
     path: &str,
     max_commits: u32,
 ) -> Result<Vec<Commit>, Error> {
-    let p = path::content_commits_path(project_name, repo_name, from, to, path, max_commits);
+    let p = path::content_commits_path(project_name, repo_name, from_rev, to_rev, path, max_commits);
     let req = client.new_request(Method::GET, p, None)?;
 
     let resp = client.request(req).await?;
@@ -88,8 +84,8 @@ pub async fn get_diff(
     client: &Client,
     project_name: &str,
     repo_name: &str,
-    from: &str,
-    to: &str,
+    from_rev: Revision,
+    to_rev: Revision,
     query: &Query,
 ) -> Result<Change, Error> {
     if query.path == "" {
@@ -97,7 +93,7 @@ pub async fn get_diff(
             "get_diff query path should not be empty",
         ));
     }
-    let p = path::content_compare_path(project_name, repo_name, from, to, query)
+    let p = path::content_compare_path(project_name, repo_name, from_rev, to_rev, query)
         .ok_or_else(|| Error::InvalidParams("JsonPath type only applicable to .json file"))?;
     let req = client.new_request(Method::GET, p, None)?;
 
@@ -112,11 +108,11 @@ pub async fn get_diffs(
     client: &Client,
     project_name: &str,
     repo_name: &str,
-    from: &str,
-    to: &str,
+    from_rev: Revision,
+    to_rev: Revision,
     path_pattern: &str,
 ) -> Result<Vec<Change>, Error> {
-    let p = path::contents_compare_path(project_name, repo_name, from, to, path_pattern);
+    let p = path::contents_compare_path(project_name, repo_name, from_rev, to_rev, path_pattern);
     let req = client.new_request(Method::GET, p, None)?;
 
     let resp = client.request(req).await?;
@@ -137,7 +133,7 @@ pub async fn push(
     client: &Client,
     project_name: &str,
     repo_name: &str,
-    base_revision: i64,
+    base_revision: Revision,
     commit_message: CommitMessage,
     changes: Vec<Change>,
 ) -> Result<PushResult, Error> {

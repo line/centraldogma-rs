@@ -4,7 +4,7 @@ mod utils;
 use centraldogma as cd;
 use cd::{
     Change, ChangeContent, CommitDetail, CommitMessage, Entry, EntryContent, Query,
-    QueryType,
+    QueryType, Revision
 };
 
 use std::pin::Pin;
@@ -100,7 +100,7 @@ fn t<'a>(ctx: &'a mut TestContext) -> Pin<Box<dyn Future<Output = Result<()>> + 
                 &ctx.client,
                 &ctx.project.name,
                 &ctx.repo.name,
-                -1,
+                Revision::HEAD,
                 commit_msg,
                 changes,
             )
@@ -203,7 +203,7 @@ fn t<'a>(ctx: &'a mut TestContext) -> Pin<Box<dyn Future<Output = Result<()>> + 
                 &ctx.client,
                 &ctx.project.name,
                 &ctx.repo.name,
-                -1,
+                Revision::HEAD,
                 commit_msg,
                 changes,
             )
@@ -218,8 +218,8 @@ fn t<'a>(ctx: &'a mut TestContext) -> Pin<Box<dyn Future<Output = Result<()>> + 
                 &ctx.client,
                 &ctx.project.name,
                 &ctx.repo.name,
-                "1",
-                "-1",
+                Revision::from(1),
+                Revision::HEAD,
                 &query
             )
             .await
@@ -245,8 +245,8 @@ fn t<'a>(ctx: &'a mut TestContext) -> Pin<Box<dyn Future<Output = Result<()>> + 
                 &ctx.client,
                 &ctx.project.name,
                 &ctx.repo.name,
-                "1",
-                "-1",
+                Revision::from(1),
+                Revision::HEAD,
                 "*"
             )
             .await

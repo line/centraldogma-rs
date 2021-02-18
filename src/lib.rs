@@ -6,6 +6,6 @@ pub mod services;
 pub use client::{Client, Error};
 pub use model::{
     Author, Change, ChangeContent, CommitDetail, CommitMessage, Entry, EntryContent, Project,
-    PushResult, Query, QueryType, Repository,
+    PushResult, Query, QueryType, Repository, Revision
 };
 pub use services::{content, project, repository, watch};

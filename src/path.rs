@@ -1,6 +1,6 @@
 use std::borrow::Cow;
 
-use crate::model::{Query, QueryType};
+use crate::model::{Query, QueryType, Revision};
 
 const PATH_PREFIX: &str = "/api/v1";
 
@@ -62,7 +62,7 @@ pub(crate) fn removed_repo_path(project_name: &str, repo_name: &str) -> String {
 pub(crate) fn list_contents_path(
     project_name: &str,
     repo_name: &str,
-    revision: i64,
+    revision: Revision,
     path_pattern: &str,
 ) -> String {
     let path_pattern = normalize_path_pattern(path_pattern);
@@ -80,7 +80,7 @@ pub(crate) fn list_contents_path(
 pub(crate) fn contents_path(
     project_name: &str,
     repo_name: &str,
-    revision: i64,
+    revision: Revision,
     path_pattern: &str,
 ) -> String {
     let path_pattern = normalize_path_pattern(path_pattern);
@@ -98,7 +98,7 @@ pub(crate) fn contents_path(
 pub(crate) fn content_path(
     project_name: &str,
     repo_name: &str,
-    revision: i64,
+    revision: Revision,
     query: &Query,
 ) -> Option<String> {
     let path = if query.path.starts_with("/") {
@@ -132,20 +132,20 @@ pub(crate) fn content_path(
 pub(crate) fn content_commits_path(
     project_name: &str,
     repo_name: &str,
-    from: &str,
-    to: &str,
+    from_rev: Revision,
+    to_rev: Revision,
     path: &str,
     max_commits: u32,
 ) -> String {
     let url = format!(
         "{}/projects/{}/repos/{}/commits/{}?",
-        PATH_PREFIX, project_name, repo_name, from
+        PATH_PREFIX, project_name, repo_name, &from_rev.to_string(),
     );
 
     let len = url.len();
     form_urlencoded::Serializer::for_suffix(url, len)
         .append_pair("path", path)
-        .append_pair("to", to)
+        .append_pair("to", &to_rev.to_string())
         .append_pair("maxCommits", &max_commits.to_string())
         .finish()
 }
@@ -153,8 +153,8 @@ pub(crate) fn content_commits_path(
 pub(crate) fn content_compare_path(
     project_name: &str,
     repo_name: &str,
-    from: &str,
-    to: &str,
+    from_rev: Revision,
+    to_rev: Revision,
     query: &Query,
 ) -> Option<String> {
     let url = format!(
@@ -172,8 +172,8 @@ pub(crate) fn content_compare_path(
     let mut serializer = form_urlencoded::Serializer::for_suffix(url, len);
     serializer
         .append_pair("path", &path)
-        .append_pair("from", from)
-        .append_pair("to", to);
+        .append_pair("from", &from_rev.to_string())
+        .append_pair("to", &to_rev.to_string());
 
     if let QueryType::JsonPath(expressions) = &query.r#type {
         if !query.path.to_lowercase().ends_with("json") {
@@ -191,8 +191,8 @@ pub(crate) fn content_compare_path(
 pub(crate) fn contents_compare_path(
     project_name: &str,
     repo_name: &str,
-    from: &str,
-    to: &str,
+    from_rev: Revision,
+    to_rev: Revision,
     path_pattern: &str,
 ) -> String {
     let url = format!(
@@ -204,15 +204,15 @@ pub(crate) fn contents_compare_path(
     let len = url.len();
     form_urlencoded::Serializer::for_suffix(url, len)
         .append_pair("pathPattern", &path_pattern)
-        .append_pair("from", from)
-        .append_pair("to", to)
+        .append_pair("from", &from_rev.to_string())
+        .append_pair("to", &to_rev.to_string())
         .finish()
 }
 
 pub(crate) fn contents_push_path(
     project_name: &str,
     repo_name: &str,
-    base_revision: i64,
+    base_revision: Revision,
 ) -> String {
     let url = format!(
         "{}/projects/{}/repos/{}/contents?",

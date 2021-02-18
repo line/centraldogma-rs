@@ -1,5 +1,23 @@
 use serde::{Deserialize, Serialize};
 
+#[derive(Debug, Serialize, Deserialize, Clone, Copy)]
+pub struct Revision(i64);
+
+impl std::fmt::Display for Revision {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
+impl Revision {
+    pub const HEAD: Revision = Revision(-1);
+
+    pub fn from(i: i64) -> Self {
+        Revision(i)
+    }
+}
+
+
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Author {
@@ -21,7 +39,7 @@ pub struct Project {
 pub struct Repository {
     pub name: String,
     pub creator: Option<Author>,
-    pub head_revision: Option<u64>,
+    pub head_revision: Option<Revision>,
     pub url: Option<String>,
     pub created_at: Option<String>,
 }
@@ -41,7 +59,7 @@ pub struct Entry {
     pub path: String,
     #[serde(flatten)]
     pub content: EntryContent,
-    pub revision: Option<u64>,
+    pub revision: Option<Revision>,
     pub url: Option<String>,
     pub modified_at: Option<String>,
 }
@@ -76,14 +94,14 @@ pub struct CommitMessage {
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PushResult {
-    pub revision: i64,
+    pub revision: Revision,
     pub pushed_at: String,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Commit {
-    pub revision: i64,
+    pub revision: Revision,
     pub author: Option<Author>,
     pub commit_message: Option<CommitMessage>,
     pub pushed_at: Option<String>,
@@ -112,6 +130,6 @@ pub struct Change {
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct WatchResult {
-    pub revision: i64,
+    pub revision: Revision,
     pub entry: Option<Entry>,
 }

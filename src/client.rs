@@ -5,6 +5,8 @@ use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use url::Url;
 
+use crate::model::Revision;
+
 const WATCH_BUFFER_TIMEOUT: Duration = Duration::from_secs(5);
 
 #[derive(Error, Debug)]
@@ -97,7 +99,7 @@ impl Client {
         method: reqwest::Method,
         path: S,
         body: Option<Body>,
-        last_known_revision: Option<i64>,
+        last_known_revision: Option<Revision>,
         timeout: Duration,
     ) -> Result<reqwest::Request, Error> {
         let mut req = self.new_request(method, path, body)?;
@@ -109,7 +111,7 @@ impl Client {
                     .insert("if-none-match", val);
             }
             None => {
-                let val = HeaderValue::from_static("-1");
+                let val = HeaderValue::from_str(&Revision::HEAD.to_string()).unwrap();
                 req.headers_mut()
                     .insert("if-none-match", val);
             }

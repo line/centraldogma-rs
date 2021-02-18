@@ -2,10 +2,7 @@
 mod utils;
 
 use centraldogma as cd;
-use cd::{
-    Change, ChangeContent, CommitMessage, EntryContent, Query,
-    QueryType,
-};
+use cd::{Change, ChangeContent, CommitMessage, EntryContent, Query, QueryType, Revision};
 
 use std::{pin::Pin, time::Duration};
 
@@ -93,7 +90,7 @@ fn watch_file_stream_test<'a>(ctx: &'a mut TestContext) -> Pin<Box<dyn Future<Ou
             &ctx.client,
             &ctx.project.name,
             &ctx.repo.name,
-            -1,
+            Revision::HEAD,
             commit_msg,
             file_change,
         )
@@ -127,7 +124,7 @@ fn watch_file_stream_test<'a>(ctx: &'a mut TestContext) -> Pin<Box<dyn Future<Ou
                 &ctx.client,
                 &ctx.project.name,
                 &ctx.repo.name,
-                -1,
+                Revision::HEAD,
                 new_commit_msg,
                 new_change
             ).await
@@ -181,7 +178,7 @@ fn watch_repo_stream_test<'a>(ctx: &'a mut TestContext) -> Pin<Box<dyn Future<Ou
                 &ctx.client,
                 &ctx.project.name,
                 &ctx.repo.name,
-                -1,
+                Revision::HEAD,
                 new_commit_msg,
                 new_change
             ).await
