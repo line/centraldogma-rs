@@ -25,7 +25,7 @@ where
 }
 
 async fn setup() -> Result<TestContext> {
-    let client = cd::Client::new_with_token("http://localhost:36462".to_string(), None)
+    let client = cd::Client::new_with_token("http://localhost:36462", None)
         .await
         .context("Failed to create client")?;
     let projects = cd::project::list(&client)

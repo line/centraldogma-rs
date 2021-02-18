@@ -35,7 +35,7 @@ pub struct Client {
 }
 
 impl Client {
-    pub async fn new_with_token(base_url: String, token: Option<String>) -> Result<Self, Error> {
+    pub async fn new_with_token(base_url: &str, token: Option<&str>) -> Result<Self, Error> {
         let url = url::Url::parse(&base_url)?;
         let http_client = reqwest::Client::builder()
             .user_agent("cd-rs")
@@ -43,7 +43,7 @@ impl Client {
 
         let mut header_value = HeaderValue::from_str(&format!(
             "Bearer {}",
-            token.as_ref().unwrap_or(&String::from("anonymous"))
+            token.as_ref().unwrap_or(&"anonymous")
         ))
         .map_err(|_| Error::InvalidTokenValue)?;
         header_value.set_sensitive(true);
