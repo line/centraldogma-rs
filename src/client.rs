@@ -207,7 +207,7 @@ impl RepoClient {
         ).await
     }
 
-    pub fn watch_file_stream(&self, query: &Query) -> Result<impl Stream<Item = WatchResult>, Error> {
+    pub fn watch_file_stream(&self, query: &Query) -> Result<impl Stream<Item = WatchResult> + Send, Error> {
         crate::services::watch::watch_file_stream(
             self.client.clone(),
             &self.project,
