@@ -1,11 +1,12 @@
 use std::{io, time::Duration};
 
+use futures::Stream;
 use reqwest::{header::HeaderValue, Body, Method, Request, Response};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use url::Url;
 
-use crate::model::Revision;
+use crate::{Change, CommitMessage, Entry, PushResult, Query, Revision, WatchResult};
 
 const WATCH_BUFFER_TIMEOUT: Duration = Duration::from_secs(5);
 
@@ -35,7 +36,7 @@ pub struct Client {
 }
 
 impl Client {
-    pub async fn new_with_token(base_url: &str, token: Option<&str>) -> Result<Self, Error> {
+    pub async fn from_token(base_url: &str, token: Option<&str>) -> Result<Self, Error> {
         let url = url::Url::parse(&base_url)?;
         let http_client = reqwest::Client::builder()
             .user_agent("cd-rs")
@@ -147,5 +148,71 @@ pub async fn status_unwrap(resp: Response) -> Result<Response, Error> {
             Err(Error::ErrorResponse(code, err_msg.message))
         }
         _ => Ok(resp),
+    }
+}
+
+pub struct RepoClient {
+    client: Client,
+    project: String,
+    repo: String,
+}
+
+impl RepoClient {
+    pub fn new(client: Client, project: &str, repo: &str) -> Self {
+        RepoClient {
+            client,
+            project: project.to_owned(),
+            repo: repo.to_owned()
+        }
+    }
+
+    pub async fn get_file(&self, revision: Revision, query: &Query) -> Result<Entry, Error> {
+        crate::services::content::get_file(
+            &self.client,
+            &self.project,
+            &self.repo,
+            revision,
+            query
+        ).await
+    }
+
+    pub async fn get_files(&self, revision: Revision, path_pattern: &str) -> Result<Vec<Entry>, Error> {
+        crate::services::content::get_files(
+            &self.client,
+            &self.project,
+            &self.repo,
+            revision,
+            path_pattern
+        ).await
+    }
+
+    pub async fn list_files(&self, revision: Revision, path_pattern: &str) -> Result<Vec<Entry>, Error> {
+        crate::services::content::list_files(
+            &self.client,
+            &self.project,
+            &self.repo,
+            revision,
+            path_pattern
+        ).await
+    }
+
+    pub async fn push(&self, base_revision: Revision, cm: CommitMessage, changes: Vec<Change>) -> Result<PushResult, Error> {
+        crate::services::content::push(
+            &self.client,
+            &self.project,
+            &self.repo,
+            base_revision,
+            cm,
+            changes,
+        ).await
+    }
+
+    pub fn watch_file_stream(&self, query: &Query) -> Result<impl Stream<Item = WatchResult>, Error> {
+        crate::services::watch::watch_file_stream(
+            self.client.clone(),
+            &self.project,
+            &self.repo,
+            query
+        )
     }
 }
