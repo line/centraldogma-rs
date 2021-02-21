@@ -45,7 +45,8 @@ pub async fn create(
     #[derive(Serialize)]
     struct CreateRepo<'a> {
         name: &'a str,
-    };
+    }
+
     let body = serde_json::to_vec(&CreateRepo { name: repo_name })?;
     let body = Body::from(body);
 

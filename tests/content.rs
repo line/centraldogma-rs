@@ -1,11 +1,11 @@
 #[macro_use]
 mod utils;
 
-use centraldogma as cd;
 use cd::{
-    Change, ChangeContent, CommitDetail, CommitMessage, Entry, EntryContent, Query,
-    QueryType, Revision
+    Change, ChangeContent, CommitDetail, CommitMessage, Entry, EntryContent, Query, QueryType,
+    Revision,
 };
+use centraldogma as cd;
 
 use std::pin::Pin;
 
@@ -19,7 +19,7 @@ struct TestContext {
     repo: cd::Repository,
 }
 
-async fn run_test<T>(test: T) -> ()
+async fn run_test<T>(test: T)
 where
     for<'a> T: FnOnce(&'a mut TestContext) -> Pin<Box<dyn Future<Output = Result<()>> + 'a>>,
 {

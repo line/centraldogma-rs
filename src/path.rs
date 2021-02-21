@@ -11,7 +11,7 @@ fn normalize_path_pattern(path_pattern: &str) -> Cow<str> {
     if path_pattern.starts_with("**") {
         return Cow::Owned(format!("/{}", path_pattern));
     }
-    if !path_pattern.starts_with("/") {
+    if !path_pattern.starts_with('/') {
         return Cow::Owned(format!("/**/{}", path_pattern));
     }
 
@@ -101,7 +101,7 @@ pub(crate) fn content_path(
     revision: Revision,
     query: &Query,
 ) -> Option<String> {
-    let path = if query.path.starts_with("/") {
+    let path = if query.path.starts_with('/') {
         &query.path[1..]
     } else {
         &query.path
@@ -139,7 +139,10 @@ pub(crate) fn content_commits_path(
 ) -> String {
     let url = format!(
         "{}/projects/{}/repos/{}/commits/{}?",
-        PATH_PREFIX, project_name, repo_name, &from_rev.to_string(),
+        PATH_PREFIX,
+        project_name,
+        repo_name,
+        &from_rev.to_string(),
     );
 
     let len = url.len();
@@ -162,7 +165,7 @@ pub(crate) fn content_compare_path(
         PATH_PREFIX, project_name, repo_name
     );
 
-    let path = if query.path.starts_with("/") {
+    let path = if query.path.starts_with('/') {
         Cow::Borrowed(&query.path)
     } else {
         Cow::Owned(format!("/{}", query.path))
@@ -230,7 +233,7 @@ pub(crate) fn content_watch_path(
     repo_name: &str,
     query: &Query,
 ) -> Option<String> {
-    let path = if query.path.starts_with("/") {
+    let path = if query.path.starts_with('/') {
         &query.path[1..]
     } else {
         &query.path
@@ -257,11 +260,7 @@ pub(crate) fn content_watch_path(
     Some(serializer.finish())
 }
 
-pub(crate) fn repo_watch_path(
-    project_name: &str,
-    repo_name: &str,
-    path_pattern: &str,
-) -> String {
+pub(crate) fn repo_watch_path(project_name: &str, repo_name: &str, path_pattern: &str) -> String {
     let path_pattern = normalize_path_pattern(path_pattern);
 
     format!(
