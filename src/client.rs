@@ -18,6 +18,7 @@ pub enum Error {
     HttpClient(#[from] reqwest::Error),
     #[error("Invalid token received")]
     InvalidTokenValue,
+    #[allow(clippy::upper_case_acronyms)]
     #[error("Invalid URL")]
     InvalidURL(#[from] url::ParseError),
     #[error("Failed to parse json")]
@@ -38,9 +39,7 @@ pub struct Client {
 impl Client {
     pub async fn from_token(base_url: &str, token: Option<&str>) -> Result<Self, Error> {
         let url = url::Url::parse(&base_url)?;
-        let http_client = reqwest::Client::builder()
-            .user_agent("cd-rs")
-            .build()?;
+        let http_client = reqwest::Client::builder().user_agent("cd-rs").build()?;
 
         let mut header_value = HeaderValue::from_str(&format!(
             "Bearer {}",
@@ -78,9 +77,10 @@ impl Client {
         let mut req = Request::new(method, self.base_url.join(path)?);
 
         // HeaderValue's clone is cheap as it's using Bytes underneath
-        req.headers_mut().insert("Authorization", self.token.clone());
+        req.headers_mut()
+            .insert("Authorization", self.token.clone());
 
-        if let &Method::PATCH = req.method() {
+        if let Method::PATCH = *req.method() {
             req.headers_mut().insert(
                 "Content-Type",
                 HeaderValue::from_static("application/json-patch+json"),
@@ -108,20 +108,17 @@ impl Client {
         match last_known_revision {
             Some(rev) => {
                 let val = HeaderValue::from_str(&rev.to_string()).unwrap();
-                req.headers_mut()
-                    .insert("if-none-match", val);
+                req.headers_mut().insert("if-none-match", val);
             }
             None => {
                 let val = HeaderValue::from_str(&Revision::HEAD.to_string()).unwrap();
-                req.headers_mut()
-                    .insert("if-none-match", val);
+                req.headers_mut().insert("if-none-match", val);
             }
         }
 
         if timeout.as_secs() != 0 {
             let val = HeaderValue::from_str(&format!("wait={}", timeout.as_secs())).unwrap();
-            req.headers_mut()
-                .insert("prefer", val);
+            req.headers_mut().insert("prefer", val);
         }
 
         let req_timeout = timeout.checked_add(WATCH_BUFFER_TIMEOUT).unwrap();
@@ -140,10 +137,10 @@ struct ErrorMessage {
 /// convert HTTP Response with status < 200 and > 300 to Error
 pub async fn status_unwrap(resp: Response) -> Result<Response, Error> {
     match resp.status().as_u16() {
-        code if code < 200 || code >= 300 => {
+        code if !(200..300).contains(&code) => {
             let err_body = resp.text().await?;
-            let err_msg: ErrorMessage = serde_json::from_str(&err_body)
-                .unwrap_or_else(|_| ErrorMessage { message: err_body });
+            let err_msg: ErrorMessage =
+                serde_json::from_str(&err_body).unwrap_or(ErrorMessage { message: err_body });
 
             Err(Error::ErrorResponse(code, err_msg.message))
         }
@@ -162,41 +159,51 @@ impl RepoClient {
         RepoClient {
             client,
             project: project.to_owned(),
-            repo: repo.to_owned()
+            repo: repo.to_owned(),
         }
     }
 
     pub async fn get_file(&self, revision: Revision, query: &Query) -> Result<Entry, Error> {
-        crate::services::content::get_file(
-            &self.client,
-            &self.project,
-            &self.repo,
-            revision,
-            query
-        ).await
+        crate::services::content::get_file(&self.client, &self.project, &self.repo, revision, query)
+            .await
     }
 
-    pub async fn get_files(&self, revision: Revision, path_pattern: &str) -> Result<Vec<Entry>, Error> {
+    pub async fn get_files(
+        &self,
+        revision: Revision,
+        path_pattern: &str,
+    ) -> Result<Vec<Entry>, Error> {
         crate::services::content::get_files(
             &self.client,
             &self.project,
             &self.repo,
             revision,
-            path_pattern
-        ).await
+            path_pattern,
+        )
+        .await
     }
 
-    pub async fn list_files(&self, revision: Revision, path_pattern: &str) -> Result<Vec<Entry>, Error> {
+    pub async fn list_files(
+        &self,
+        revision: Revision,
+        path_pattern: &str,
+    ) -> Result<Vec<Entry>, Error> {
         crate::services::content::list_files(
             &self.client,
             &self.project,
             &self.repo,
             revision,
-            path_pattern
-        ).await
+            path_pattern,
+        )
+        .await
     }
 
-    pub async fn push(&self, base_revision: Revision, cm: CommitMessage, changes: Vec<Change>) -> Result<PushResult, Error> {
+    pub async fn push(
+        &self,
+        base_revision: Revision,
+        cm: CommitMessage,
+        changes: Vec<Change>,
+    ) -> Result<PushResult, Error> {
         crate::services::content::push(
             &self.client,
             &self.project,
@@ -204,15 +211,19 @@ impl RepoClient {
             base_revision,
             cm,
             changes,
-        ).await
+        )
+        .await
     }
 
-    pub fn watch_file_stream(&self, query: &Query) -> Result<impl Stream<Item = WatchResult> + Send, Error> {
+    pub fn watch_file_stream(
+        &self,
+        query: &Query,
+    ) -> Result<impl Stream<Item = WatchResult> + Send, Error> {
         crate::services::watch::watch_file_stream(
             self.client.clone(),
             &self.project,
             &self.repo,
-            query
+            query,
         )
     }
 }

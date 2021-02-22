@@ -43,7 +43,8 @@ pub async fn create(client: &Client, name: &str) -> Result<Project, client::Erro
     #[derive(Serialize)]
     struct CreateProject<'a> {
         name: &'a str,
-    };
+    }
+
     let body: Vec<u8> = serde_json::to_vec(&CreateProject { name })?;
     let body = Body::from(body);
     let req = client.new_request(Method::POST, path::projects_path(), Some(body))?;

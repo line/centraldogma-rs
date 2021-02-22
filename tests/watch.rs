@@ -1,13 +1,16 @@
 #[macro_use]
 mod utils;
 
-use centraldogma as cd;
 use cd::{Change, ChangeContent, CommitMessage, EntryContent, Query, QueryType, Revision};
+use centraldogma as cd;
 
 use std::{pin::Pin, time::Duration};
 
 use anyhow::{ensure, Context, Result};
-use futures::{StreamExt, future::{Future, FutureExt}};
+use futures::{
+    future::{Future, FutureExt},
+    StreamExt,
+};
 use serde_json::json;
 
 struct TestContext {
@@ -16,7 +19,7 @@ struct TestContext {
     repo: cd::Repository,
 }
 
-async fn run_test<T>(test: T) -> ()
+async fn run_test<T>(test: T)
 where
     for<'a> T: FnOnce(&'a mut TestContext) -> Pin<Box<dyn Future<Output = Result<()>> + 'a>>,
 {
@@ -75,11 +78,13 @@ async fn teardown(ctx: TestContext) -> Result<()> {
     Ok(())
 }
 
-fn watch_file_stream_test<'a>(ctx: &'a mut TestContext) -> Pin<Box<dyn Future<Output = Result<()>> + 'a>> {
+fn watch_file_stream_test<'a>(
+    ctx: &'a mut TestContext,
+) -> Pin<Box<dyn Future<Output = Result<()>> + 'a>> {
     async move {
         let commit_msg = CommitMessage {
             summary: "File".to_string(),
-            detail: None
+            detail: None,
         };
         let file_change = vec![Change {
             path: "/a.json".to_string(),
@@ -105,7 +110,7 @@ fn watch_file_stream_test<'a>(ctx: &'a mut TestContext) -> Pin<Box<dyn Future<Ou
             ctx.client.clone(),
             &ctx.project.name,
             &ctx.repo.name,
-            &query
+            &query,
         )
         .context(here!("Failed to get file watch stream"))?;
         futures::pin_mut!(watch_stream);
@@ -126,8 +131,9 @@ fn watch_file_stream_test<'a>(ctx: &'a mut TestContext) -> Pin<Box<dyn Future<Ou
                 &ctx.repo.name,
                 Revision::HEAD,
                 new_commit_msg,
-                new_change
-            ).await
+                new_change,
+            )
+            .await
         };
 
         let sleep = tokio::time::sleep(Duration::from_millis(10000));
@@ -153,15 +159,13 @@ fn watch_file_stream_test<'a>(ctx: &'a mut TestContext) -> Pin<Box<dyn Future<Ou
     .boxed()
 }
 
-fn watch_repo_stream_test<'a>(ctx: &'a mut TestContext) -> Pin<Box<dyn Future<Output = Result<()>> + 'a>> {
+fn watch_repo_stream_test<'a>(
+    ctx: &'a mut TestContext,
+) -> Pin<Box<dyn Future<Output = Result<()>> + 'a>> {
     async move {
-        let watch_stream = cd::watch::watch_repo_stream(
-            ctx.client.clone(),
-            &ctx.project.name,
-            &ctx.repo.name,
-            ""
-        )
-        .context(here!("Failed to get file watch stream"))?;
+        let watch_stream =
+            cd::watch::watch_repo_stream(ctx.client.clone(), &ctx.project.name, &ctx.repo.name, "")
+                .context(here!("Failed to get file watch stream"))?;
         futures::pin_mut!(watch_stream);
 
         let new_commit_msg = CommitMessage {
@@ -180,8 +184,9 @@ fn watch_repo_stream_test<'a>(ctx: &'a mut TestContext) -> Pin<Box<dyn Future<Ou
                 &ctx.repo.name,
                 Revision::HEAD,
                 new_commit_msg,
-                new_change
-            ).await
+                new_change,
+            )
+            .await
         };
 
         let sleep = tokio::time::sleep(Duration::from_millis(10000));

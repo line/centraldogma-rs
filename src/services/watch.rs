@@ -1,6 +1,10 @@
 use std::time::Duration;
 
-use crate::{Client, Error, Query, client::status_unwrap, model::{WatchResult, Revision}, path};
+use crate::{
+    client::status_unwrap,
+    model::{Revision, WatchResult},
+    path, Client, Error, Query,
+};
 
 use futures::Stream;
 use reqwest::{Method, Request, StatusCode};
@@ -10,10 +14,7 @@ const DELAY_ON_SUCCESS: Duration = Duration::from_secs(1);
 const MAX_FAILED_COUNT: usize = 5; // Max base wait time 2 << 5 = 64 secs
 const JITTER_RATE: f32 = 0.2;
 
-async fn request_watch(
-    client: &Client,
-    req: Request,
-) -> Result<Option<WatchResult>, Error> {
+async fn request_watch(client: &Client, req: Request) -> Result<Option<WatchResult>, Error> {
     let resp = client.request(req).await?;
     if resp.status() == StatusCode::NOT_MODIFIED {
         return Ok(None);
@@ -39,25 +40,31 @@ struct WatchState {
     success_delay: Option<Duration>,
 }
 
-fn watch_stream(
-    client: Client,
-    path: String
-) -> impl Stream<Item = WatchResult> + Send {
+fn watch_stream(client: Client, path: String) -> impl Stream<Item = WatchResult> + Send {
     let init_state = WatchState {
         client,
         path,
         last_known_revision: None,
         failed_count: 0,
-        success_delay: None
+        success_delay: None,
     };
     futures::stream::unfold(init_state, |mut state| async move {
         if let Some(d) = state.success_delay.take() {
             tokio::time::sleep(d).await;
         }
         loop {
-            let req = match state.client.new_watch_request(Method::GET, &state.path, None, state.last_known_revision, DEFAULT_TIMEOUT) {
-                Ok(r) => { r },
-                Err(_) => { state.failed_count += 1; continue; },
+            let req = match state.client.new_watch_request(
+                Method::GET,
+                &state.path,
+                None,
+                state.last_known_revision,
+                DEFAULT_TIMEOUT,
+            ) {
+                Ok(r) => r,
+                Err(_) => {
+                    state.failed_count += 1;
+                    continue;
+                }
             };
 
             let resp = request_watch(&state.client, req).await;
@@ -69,14 +76,12 @@ fn watch_stream(
                     state.success_delay = Some(DELAY_ON_SUCCESS);
 
                     return Some((watch_result, state));
-                },
+                }
                 Ok(None) => {
                     state.failed_count = 0;
                     Duration::from_secs(1)
                 }
-                Err(Error::HttpClient(e)) if e.is_timeout() => {
-                    Duration::from_secs(1)
-                },
+                Err(Error::HttpClient(e)) if e.is_timeout() => Duration::from_secs(1),
                 Err(e) => {
                     log::debug!("Request error: {}", e);
                     if state.failed_count < MAX_FAILED_COUNT {
@@ -98,8 +103,9 @@ pub fn watch_file_stream(
     repo_name: &str,
     query: &Query,
 ) -> Result<impl Stream<Item = WatchResult> + Send, Error> {
-    let p = path::content_watch_path(project_name, repo_name, query)
-        .ok_or_else(|| Error::InvalidParams("JsonPath type only applicable to .json file"))?;
+    let p = path::content_watch_path(project_name, repo_name, query).ok_or(
+        Error::InvalidParams("JsonPath type only applicable to .json file"),
+    )?;
 
     Ok(watch_stream(client, p))
 }

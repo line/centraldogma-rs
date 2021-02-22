@@ -11,7 +11,7 @@ struct TestContext {
     project: cd::Project,
 }
 
-async fn run_test<T>(test: T) -> ()
+async fn run_test<T>(test: T)
 where
     for<'a> T: FnOnce(&'a mut TestContext) -> Pin<Box<dyn Future<Output = Result<()>> + 'a>>,
 {
@@ -59,7 +59,7 @@ fn t1<'a>(ctx: &'a mut TestContext) -> Pin<Box<dyn Future<Output = Result<()>> +
         let repos = cd::repository::list_by_project_name(&ctx.client, &ctx.project.name)
             .await
             .context("Failed to list repositories from project")?;
-            ensure!(repos.len() == 2, here!("New project should have 2 repos"));
+        ensure!(repos.len() == 2, here!("New project should have 2 repos"));
 
         // Create new repository
         let repo_name = "TestRepo";

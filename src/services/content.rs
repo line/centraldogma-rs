@@ -1,4 +1,8 @@
-use crate::{Client, Entry, Error, client::status_unwrap, model::{Change, Commit, CommitMessage, PushResult, Query, Revision}, path};
+use crate::{
+    client::status_unwrap,
+    model::{Change, Commit, CommitMessage, PushResult, Query, Revision},
+    path, Client, Entry, Error,
+};
 
 use reqwest::{Body, Method};
 use serde::Serialize;
@@ -30,8 +34,9 @@ pub async fn get_file(
     revision: Revision,
     query: &Query,
 ) -> Result<Entry, Error> {
-    let p = path::content_path(project_name, repo_name, revision, query)
-        .ok_or_else(|| Error::InvalidParams("JsonPath type only applicable to .json file"))?;
+    let p = path::content_path(project_name, repo_name, revision, query).ok_or(
+        Error::InvalidParams("JsonPath type only applicable to .json file"),
+    )?;
     let req = client.new_request(Method::GET, p, None)?;
 
     let resp = client.request(req).await?;
@@ -70,7 +75,8 @@ pub async fn get_history(
     path: &str,
     max_commits: u32,
 ) -> Result<Vec<Commit>, Error> {
-    let p = path::content_commits_path(project_name, repo_name, from_rev, to_rev, path, max_commits);
+    let p =
+        path::content_commits_path(project_name, repo_name, from_rev, to_rev, path, max_commits);
     let req = client.new_request(Method::GET, p, None)?;
 
     let resp = client.request(req).await?;
@@ -88,13 +94,14 @@ pub async fn get_diff(
     to_rev: Revision,
     query: &Query,
 ) -> Result<Change, Error> {
-    if query.path == "" {
+    if query.path.is_empty() {
         return Err(Error::InvalidParams(
             "get_diff query path should not be empty",
         ));
     }
-    let p = path::content_compare_path(project_name, repo_name, from_rev, to_rev, query)
-        .ok_or_else(|| Error::InvalidParams("JsonPath type only applicable to .json file"))?;
+    let p = path::content_compare_path(project_name, repo_name, from_rev, to_rev, query).ok_or(
+        Error::InvalidParams("JsonPath type only applicable to .json file"),
+    )?;
     let req = client.new_request(Method::GET, p, None)?;
 
     let resp = client.request(req).await?;
