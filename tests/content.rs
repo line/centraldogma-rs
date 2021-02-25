@@ -2,8 +2,7 @@
 mod utils;
 
 use cd::{
-    Change, ChangeContent, CommitDetail, CommitMessage, ContentService, Entry, EntryContent, Query,
-    QueryType, Revision,
+    Change, ChangeContent, CommitDetail, CommitMessage, ContentService, Entry, EntryContent, Query, Revision,
 };
 use centraldogma as cd;
 
@@ -109,13 +108,9 @@ fn t<'a>(ctx: &'a mut TestContext) -> Pin<Box<dyn Future<Output = Result<()>> + 
 
         // Get single file
         {
-            let file_query = Query {
-                path: "/a.json".to_string(),
-                r#type: QueryType::Identity,
-            };
             let file: Entry = r.get_file(
                 push_result.revision,
-                &file_query,
+                &Query::of_json("/a.json"),
             )
             .await
             .context(here!("Failed to fetch file content"))?;
@@ -129,13 +124,9 @@ fn t<'a>(ctx: &'a mut TestContext) -> Pin<Box<dyn Future<Output = Result<()>> + 
 
         // Get single file jsonpath
         {
-            let file_query = Query {
-                path: "/a.json".to_string(),
-                r#type: QueryType::JsonPath(vec!["test_key".to_string()]),
-            };
             let file: Entry = r.get_file(
                 push_result.revision,
-                &file_query,
+                &Query::of_json_path("/a.json", vec!["test_key".to_owned()]).unwrap(),
             )
             .await
             .context(here!("Failed to fetch file content"))?;
@@ -194,14 +185,10 @@ fn t<'a>(ctx: &'a mut TestContext) -> Pin<Box<dyn Future<Output = Result<()>> + 
             .await
             .context(here!("Failed to push file"))?;
 
-            let query = Query {
-                path: "/a.json".to_string(),
-                r#type: QueryType::Identity,
-            };
             let diff = r.get_diff(
                 Revision::from(1),
                 Revision::HEAD,
-                &query
+                &Query::identity("/a.json"),
             )
             .await
             .context(here!("Failed to get diff"))?;

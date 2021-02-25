@@ -1,7 +1,7 @@
 #[macro_use]
 mod utils;
 
-use cd::{Change, ChangeContent, CommitMessage, ContentService, EntryContent, Query, QueryType, Revision, WatchService};
+use cd::{Change, ChangeContent, CommitMessage, ContentService, EntryContent, Query, Revision, WatchService};
 use centraldogma as cd;
 
 use std::{pin::Pin, time::Duration};
@@ -101,12 +101,8 @@ fn watch_file_stream_test<'a>(
         .await
         .context(here!("Failed to push file"))?;
 
-        let query = Query {
-            path: "/a.json".to_string(),
-            r#type: QueryType::Identity,
-        };
         let watch_stream = r.watch_file_stream(
-            &query,
+            &Query::of_json("/a.json")
         )
         .context(here!("Failed to get file watch stream"))?;
 

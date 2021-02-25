@@ -66,12 +66,63 @@ pub struct Entry {
 #[derive(Debug)]
 pub enum QueryType {
     Identity,
+    IdentityJson,
+    IdentityText,
     JsonPath(Vec<String>),
 }
 
+/// A Query on a file
+#[derive(Debug)]
 pub struct Query {
-    pub path: String,
-    pub r#type: QueryType,
+    pub(crate) path: String,
+    pub(crate) r#type: QueryType,
+}
+
+impl Query {
+    fn normalize_path(path: &str) -> String {
+        if path.starts_with('/') {
+            path.to_owned()
+        } else {
+            format!("/{}", path)
+        }
+    }
+
+    pub fn identity(path: &str) -> Self {
+        Query {
+            path: Self::normalize_path(path),
+            r#type: QueryType::Identity,
+        }
+    }
+
+    /// Returns a newly-created [`Query`] that retrieves the textual content as it is.
+    pub fn of_text(path: &str) -> Self {
+        Query {
+            path: Self::normalize_path(path),
+            r#type: QueryType::IdentityText
+        }
+    }
+
+    /// Returns a newly-created [`Query`] that retrieves the JSON content as it is.
+    pub fn of_json(path: &str) -> Self {
+        Query {
+            path: Self::normalize_path(path),
+            r#type: QueryType::IdentityJson
+        }
+    }
+
+    /// Returns a newly-created [`Query`] that applies a series of
+    /// [JSON path expressions](https://github.com/json-path/JsonPath/blob/master/README.md)
+    /// to the content.
+    /// Returns `None` if path does not end with `.json`.
+    pub fn of_json_path(path: &str, exprs: Vec<String>) -> Option<Self> {
+        if !path.to_lowercase().ends_with("json") {
+            return None;
+        }
+        Some(Query {
+            path: Self::normalize_path(path),
+            r#type: QueryType::JsonPath(exprs)
+        })
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize)]

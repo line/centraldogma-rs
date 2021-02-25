@@ -100,16 +100,10 @@ pub(crate) fn content_path(
     repo_name: &str,
     revision: Revision,
     query: &Query,
-) -> Option<String> {
-    let path = if query.path.starts_with('/') {
-        &query.path[1..]
-    } else {
-        &query.path
-    };
-
+) -> String {
     let url = format!(
-        "{}/projects/{}/repos/{}/contents/{}?",
-        PATH_PREFIX, project_name, repo_name, path
+        "{}/projects/{}/repos/{}/contents{}?",
+        PATH_PREFIX, project_name, repo_name, &query.path
     );
 
     let len = url.len();
@@ -117,16 +111,12 @@ pub(crate) fn content_path(
     serializer.append_pair("revision", &revision.to_string());
 
     if let QueryType::JsonPath(expressions) = &query.r#type {
-        if !query.path.to_lowercase().ends_with("json") {
-            return None;
-        }
-
         for expression in expressions.iter() {
             serializer.append_pair("jsonpath", expression);
         }
     }
 
-    Some(serializer.finish())
+    serializer.finish()
 }
 
 pub(crate) fn content_commits_path(
@@ -159,36 +149,26 @@ pub(crate) fn content_compare_path(
     from_rev: Revision,
     to_rev: Revision,
     query: &Query,
-) -> Option<String> {
+) -> String {
     let url = format!(
         "{}/projects/{}/repos/{}/compare?",
         PATH_PREFIX, project_name, repo_name
     );
 
-    let path = if query.path.starts_with('/') {
-        Cow::Borrowed(&query.path)
-    } else {
-        Cow::Owned(format!("/{}", query.path))
-    };
-
     let len = url.len();
     let mut serializer = form_urlencoded::Serializer::for_suffix(url, len);
     serializer
-        .append_pair("path", &path)
+        .append_pair("path", &query.path)
         .append_pair("from", &from_rev.to_string())
         .append_pair("to", &to_rev.to_string());
 
     if let QueryType::JsonPath(expressions) = &query.r#type {
-        if !query.path.to_lowercase().ends_with("json") {
-            return None;
-        }
-
         for expression in expressions.iter() {
             serializer.append_pair("jsonpath", expression);
         }
     }
 
-    Some(serializer.finish())
+    serializer.finish()
 }
 
 pub(crate) fn contents_compare_path(
@@ -232,32 +212,22 @@ pub(crate) fn content_watch_path(
     project_name: &str,
     repo_name: &str,
     query: &Query,
-) -> Option<String> {
-    let path = if query.path.starts_with('/') {
-        &query.path[1..]
-    } else {
-        &query.path
-    };
-
+) -> String {
     let url = format!(
-        "{}/projects/{}/repos/{}/contents/{}?",
-        PATH_PREFIX, project_name, repo_name, path
+        "{}/projects/{}/repos/{}/contents{}?",
+        PATH_PREFIX, project_name, repo_name, &query.path
     );
 
     let len = url.len();
     let mut serializer = form_urlencoded::Serializer::for_suffix(url, len);
 
     if let QueryType::JsonPath(expressions) = &query.r#type {
-        if !query.path.to_lowercase().ends_with("json") {
-            return None;
-        }
-
         for expression in expressions.iter() {
             serializer.append_pair("jsonpath", expression);
         }
     }
 
-    Some(serializer.finish())
+    serializer.finish()
 }
 
 pub(crate) fn repo_watch_path(project_name: &str, repo_name: &str, path_pattern: &str) -> String {

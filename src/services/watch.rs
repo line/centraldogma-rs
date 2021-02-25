@@ -103,9 +103,7 @@ pub fn watch_file_stream(
     repo_name: &str,
     query: &Query,
 ) -> Result<impl Stream<Item = WatchResult> + Send, Error> {
-    let p = path::content_watch_path(project_name, repo_name, query).ok_or(
-        Error::InvalidParams("JsonPath type only applicable to .json file"),
-    )?;
+    let p = path::content_watch_path(project_name, repo_name, query);
 
     Ok(watch_stream(client, p))
 }
