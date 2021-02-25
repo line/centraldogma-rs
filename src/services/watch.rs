@@ -62,8 +62,7 @@ fn watch_stream(client: Client, path: String) -> impl Stream<Item = WatchResult>
             ) {
                 Ok(r) => r,
                 Err(_) => {
-                    state.failed_count += 1;
-                    continue;
+                    return None;
                 }
             };
 
@@ -87,7 +86,6 @@ fn watch_stream(client: Client, path: String) -> impl Stream<Item = WatchResult>
                     if state.failed_count < MAX_FAILED_COUNT {
                         state.failed_count += 1;
                     }
-                    // TODO: add random jitter
                     delay_time_for(state.failed_count)
                 }
             };
