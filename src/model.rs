@@ -87,6 +87,10 @@ impl Query {
         }
     }
 
+    /// Returns a newly-created [`Query`] that retrieves the content as it is.
+    /// Deprecated.  
+    /// Use [`Self::of_text()`] or [`Self::of_json()`] instead
+    #[deprecated]
     pub fn identity(path: &str) -> Self {
         Query {
             path: Self::normalize_path(path),
