@@ -2,7 +2,11 @@
 mod utils;
 
 use cd::{
-    Change, ChangeContent, CommitDetail, CommitMessage, ContentService, Entry, EntryContent, Query, Revision,
+    model::{
+        Change, ChangeContent, CommitDetail, CommitMessage, Entry, EntryContent, Project, Query,
+        Repository, Revision,
+    },
+    ContentService,
 };
 use centraldogma as cd;
 
@@ -14,8 +18,8 @@ use serde_json::json;
 
 struct TestContext {
     client: cd::Client,
-    project: cd::Project,
-    repo: cd::Repository,
+    project: Project,
+    repo: Repository,
 }
 
 async fn run_test<T>(test: T)
@@ -32,7 +36,7 @@ where
 }
 
 async fn setup() -> Result<TestContext> {
-    let client = cd::Client::from_token("http://localhost:36462", None)
+    let client = cd::Client::new("http://localhost:36462", None)
         .await
         .context("Failed to create client")?;
     let projects = cd::project::list(&client)
@@ -93,7 +97,7 @@ fn t<'a>(ctx: &'a mut TestContext) -> Pin<Box<dyn Future<Output = Result<()>> + 
                     "test_key": "test_value"
                 })),
             }, Change {
-                path: "/b.txt".to_string(),
+                path: "/folder/b.txt".to_string(),
                 content: ChangeContent::UpsertText("text value".to_string()),
             }];
 
@@ -110,7 +114,7 @@ fn t<'a>(ctx: &'a mut TestContext) -> Pin<Box<dyn Future<Output = Result<()>> + 
         {
             let file: Entry = r.get_file(
                 push_result.revision,
-                &Query::of_json("/a.json"),
+                &Query::of_json("/a.json").unwrap(),
             )
             .await
             .context(here!("Failed to fetch file content"))?;
@@ -119,6 +123,23 @@ fn t<'a>(ctx: &'a mut TestContext) -> Pin<Box<dyn Future<Output = Result<()>> + 
             ensure!(
                 matches!(file.content, EntryContent::Json(json) if json == json!({"test_key": "test_value"})),
                 here!("Expect same json content")
+            );
+        }
+
+        // List files
+        {
+            let file_list = r.list_files(
+                Revision::HEAD,
+                ""
+            )
+            .await
+            .context(here!("Failed to list files"))?;
+
+            println!("File list: {:?}", &file_list);
+
+            ensure!(
+                file_list.len() == 3,
+                here!("Wrong number of file entry returned")
             );
         }
 
@@ -154,11 +175,11 @@ fn t<'a>(ctx: &'a mut TestContext) -> Pin<Box<dyn Future<Output = Result<()>> + 
             )
             .await
             .context(here!("Failed to fetch multiple files"))?;
-            ensure!(entries.len() == 2, here!("wrong number of entries returned"));
+            ensure!(entries.len() == 3, here!("wrong number of entries returned"));
 
             println!("Entries: {:?}", &entries);
             let exist = entries.iter().any(|e| {
-                e.path == "/b.txt" && matches!(&e.content, EntryContent::Text(s) if s == "text value\n")
+                e.path == "/folder/b.txt" && matches!(&e.content, EntryContent::Text(s) if s == "text value\n")
             });
             ensure!(exist, here!("Expected value not found"));
         }
@@ -188,7 +209,7 @@ fn t<'a>(ctx: &'a mut TestContext) -> Pin<Box<dyn Future<Output = Result<()>> + 
             let diff = r.get_diff(
                 Revision::from(1),
                 Revision::HEAD,
-                &Query::identity("/a.json"),
+                &Query::of_json("/a.json").unwrap(),
             )
             .await
             .context(here!("Failed to get diff"))?;

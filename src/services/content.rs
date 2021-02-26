@@ -1,7 +1,7 @@
 use crate::{
     client::status_unwrap,
-    model::{Change, Commit, CommitMessage, PushResult, Query, Revision},
-    path, Client, Entry, Error,
+    model::{Change, Commit, CommitMessage, Entry, ListEntry, PushResult, Query, Revision},
+    path, Client, Error,
 };
 
 use reqwest::{Body, Method};
@@ -13,7 +13,7 @@ pub async fn list_files(
     repo_name: &str,
     revision: Revision,
     path_pattern: &str,
-) -> Result<Vec<Entry>, Error> {
+) -> Result<Vec<ListEntry>, Error> {
     let req = client.new_request(
         Method::GET,
         path::list_contents_path(project_name, repo_name, revision, &path_pattern),
@@ -92,11 +92,6 @@ pub async fn get_diff(
     to_rev: Revision,
     query: &Query,
 ) -> Result<Change, Error> {
-    if query.path.is_empty() {
-        return Err(Error::InvalidParams(
-            "get_diff query path should not be empty",
-        ));
-    }
     let p = path::content_compare_path(project_name, repo_name, from_rev, to_rev, query);
     let req = client.new_request(Method::GET, p, None)?;
 

@@ -9,7 +9,7 @@ use std::pin::Pin;
 
 struct TestContext {
     client: cd::Client,
-    project: cd::Project,
+    project: cd::model::Project,
 }
 
 async fn run_test<T>(test: T)
@@ -26,7 +26,7 @@ where
 }
 
 async fn setup() -> Result<TestContext> {
-    let client = cd::Client::from_token("http://localhost:36462", None)
+    let client = cd::Client::new("http://localhost:36462", None)
         .await
         .context("Failed to create client")?;
     let projects = cd::project::list(&client)

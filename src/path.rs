@@ -208,11 +208,7 @@ pub(crate) fn contents_push_path(
         .finish()
 }
 
-pub(crate) fn content_watch_path(
-    project_name: &str,
-    repo_name: &str,
-    query: &Query,
-) -> String {
+pub(crate) fn content_watch_path(project_name: &str, repo_name: &str, query: &Query) -> String {
     let url = format!(
         "{}/projects/{}/repos/{}/contents{}?",
         PATH_PREFIX, project_name, repo_name, &query.path

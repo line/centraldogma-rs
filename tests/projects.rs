@@ -4,7 +4,7 @@ use centraldogma as cd;
 #[cfg(test)]
 #[tokio::test]
 async fn test_projects() {
-    let client = cd::Client::from_token("http://localhost:36462", None)
+    let client = cd::Client::new("http://localhost:36462", None)
         .await
         .unwrap();
     let projects = client

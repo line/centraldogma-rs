@@ -2,8 +2,8 @@ use std::time::Duration;
 
 use crate::{
     client::status_unwrap,
-    model::{Revision, WatchResult},
-    path, Client, Error, Query,
+    model::{Query, Revision, WatchFileResult, WatchRepoResult, Watchable},
+    path, Client, Error,
 };
 
 use futures::Stream;
@@ -14,7 +14,7 @@ const DELAY_ON_SUCCESS: Duration = Duration::from_secs(1);
 const MAX_FAILED_COUNT: usize = 5; // Max base wait time 2 << 5 = 64 secs
 const JITTER_RATE: f32 = 0.2;
 
-async fn request_watch(client: &Client, req: Request) -> Result<Option<WatchResult>, Error> {
+async fn request_watch<D: Watchable>(client: &Client, req: Request) -> Result<Option<D>, Error> {
     let resp = client.request(req).await?;
     if resp.status() == StatusCode::NOT_MODIFIED {
         return Ok(None);
@@ -40,7 +40,7 @@ struct WatchState {
     success_delay: Option<Duration>,
 }
 
-fn watch_stream(client: Client, path: String) -> impl Stream<Item = WatchResult> + Send {
+fn watch_stream<D: Watchable>(client: Client, path: String) -> impl Stream<Item = D> + Send {
     let init_state = WatchState {
         client,
         path,
@@ -66,11 +66,11 @@ fn watch_stream(client: Client, path: String) -> impl Stream<Item = WatchResult>
                 }
             };
 
-            let resp = request_watch(&state.client, req).await;
+            let resp: Result<Option<D>, _> = request_watch(&state.client, req).await;
             let next_delay = match resp {
                 // Send Ok data out
                 Ok(Some(watch_result)) => {
-                    state.last_known_revision = Some(watch_result.revision);
+                    state.last_known_revision = Some(watch_result.revision());
                     state.failed_count = 0;
                     state.success_delay = Some(DELAY_ON_SUCCESS);
 
@@ -100,7 +100,7 @@ pub fn watch_file_stream(
     project_name: &str,
     repo_name: &str,
     query: &Query,
-) -> Result<impl Stream<Item = WatchResult> + Send, Error> {
+) -> Result<impl Stream<Item = WatchFileResult> + Send, Error> {
     let p = path::content_watch_path(project_name, repo_name, query);
 
     Ok(watch_stream(client, p))
@@ -111,7 +111,7 @@ pub fn watch_repo_stream(
     project_name: &str,
     repo_name: &str,
     path_pattern: &str,
-) -> Result<impl Stream<Item = WatchResult> + Send, Error> {
+) -> Result<impl Stream<Item = WatchRepoResult> + Send, Error> {
     let p = path::repo_watch_path(project_name, repo_name, path_pattern);
 
     Ok(watch_stream(client, p))

@@ -1,13 +1,10 @@
 mod client;
-mod model;
+pub mod model;
 pub(crate) mod path;
-pub mod services;
+mod services;
 
 pub use client::{
-    Client, ContentService, Error, ProjectService, RepoClient, RepoService, WatchService,
-};
-pub use model::{
-    Author, Change, ChangeContent, Commit, CommitDetail, CommitMessage, Entry, EntryContent,
-    Project, PushResult, Query, QueryType, Repository, Revision, WatchResult,
+    Client, ContentService, Error, ProjectClient, ProjectService, RepoClient, RepoService,
+    WatchService,
 };
 pub use services::{content, project, repository, watch};

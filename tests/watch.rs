@@ -1,7 +1,10 @@
 #[macro_use]
 mod utils;
 
-use cd::{Change, ChangeContent, CommitMessage, ContentService, EntryContent, Query, Revision, WatchService};
+use cd::{
+    model::{Change, ChangeContent, CommitMessage, EntryContent, Query, Revision},
+    ContentService, WatchService,
+};
 use centraldogma as cd;
 
 use std::{pin::Pin, time::Duration};
@@ -15,8 +18,8 @@ use serde_json::json;
 
 struct TestContext {
     client: cd::Client,
-    project: cd::Project,
-    repo: cd::Repository,
+    project: cd::model::Project,
+    repo: cd::model::Repository,
 }
 
 async fn run_test<T>(test: T)
@@ -33,7 +36,7 @@ where
 }
 
 async fn setup() -> Result<TestContext> {
-    let client = cd::Client::from_token("http://localhost:36462", None)
+    let client = cd::Client::new("http://localhost:36462", None)
         .await
         .context("Failed to create client")?;
     let projects = cd::project::list(&client)
@@ -93,18 +96,13 @@ fn watch_file_stream_test<'a>(
             content: ChangeContent::UpsertJson(json!({"a": "b"})),
         }];
 
-        r.push(
-            Revision::HEAD,
-            commit_msg,
-            file_change,
-        )
-        .await
-        .context(here!("Failed to push file"))?;
+        r.push(Revision::HEAD, commit_msg, file_change)
+            .await
+            .context(here!("Failed to push file"))?;
 
-        let watch_stream = r.watch_file_stream(
-            &Query::of_json("/a.json")
-        )
-        .context(here!("Failed to get file watch stream"))?;
+        let watch_stream = r
+            .watch_file_stream(&Query::of_json("/a.json").unwrap())
+            .context(here!("Failed to get file watch stream"))?;
 
         let new_commit_msg = CommitMessage {
             summary: "change content".to_string(),
@@ -116,12 +114,7 @@ fn watch_file_stream_test<'a>(
         }];
         let new_push = async move {
             tokio::time::sleep(Duration::from_millis(1)).await;
-            r.push(
-                Revision::HEAD,
-                new_commit_msg,
-                new_change,
-            )
-            .await
+            r.push(Revision::HEAD, new_commit_msg, new_change).await
         };
 
         let sleep = tokio::time::sleep(Duration::from_millis(10000));
@@ -133,12 +126,13 @@ fn watch_file_stream_test<'a>(
         println!("Watch result: {:?}", wr);
         ensure!(wr.is_some(), here!("Failed to get initial watch result"));
         let wr = wr.unwrap();
-        ensure!(wr.entry.is_some(), here!("Empty entry"));
 
-        let entry = wr.entry.unwrap();
-        ensure!(entry.path == "/a.json", here!("Wrong entry path returned"));
         ensure!(
-            matches!(entry.content, EntryContent::Json(json) if json == json!({"a": "c"})),
+            wr.entry.path == "/a.json",
+            here!("Wrong entry path returned")
+        );
+        ensure!(
+            matches!(wr.entry.content, EntryContent::Json(json) if json == json!({"a": "c"})),
             here!("Wrong entry content returned")
         );
 
@@ -153,7 +147,8 @@ fn watch_repo_stream_test<'a>(
     async move {
         let r = ctx.client.repo(&ctx.project.name, &ctx.repo.name);
 
-        let watch_stream = r.watch_repo_stream("")
+        let watch_stream = r
+            .watch_repo_stream("")
             .context(here!("Failed to get file watch stream"))?;
 
         let new_commit_msg = CommitMessage {
@@ -166,12 +161,7 @@ fn watch_repo_stream_test<'a>(
         }];
         let new_push = async move {
             tokio::time::sleep(Duration::from_millis(10)).await;
-            r.push(
-                Revision::HEAD,
-                new_commit_msg,
-                new_change,
-            )
-            .await
+            r.push(Revision::HEAD, new_commit_msg, new_change).await
         };
 
         let sleep = tokio::time::sleep(Duration::from_millis(10000));
