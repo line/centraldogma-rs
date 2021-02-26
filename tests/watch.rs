@@ -1,7 +1,7 @@
 #[macro_use]
 mod utils;
 
-use cd::{Change, ChangeContent, CommitMessage, EntryContent, Query, QueryType, Revision};
+use cd::{Change, ChangeContent, CommitMessage, ContentService, EntryContent, Query, Revision, WatchService};
 use centraldogma as cd;
 
 use std::{pin::Pin, time::Duration};
@@ -82,6 +82,8 @@ fn watch_file_stream_test<'a>(
     ctx: &'a mut TestContext,
 ) -> Pin<Box<dyn Future<Output = Result<()>> + 'a>> {
     async move {
+        let r = ctx.client.repo(&ctx.project.name, &ctx.repo.name);
+
         let commit_msg = CommitMessage {
             summary: "File".to_string(),
             detail: None,
@@ -91,10 +93,7 @@ fn watch_file_stream_test<'a>(
             content: ChangeContent::UpsertJson(json!({"a": "b"})),
         }];
 
-        cd::content::push(
-            &ctx.client,
-            &ctx.project.name,
-            &ctx.repo.name,
+        r.push(
             Revision::HEAD,
             commit_msg,
             file_change,
@@ -102,18 +101,10 @@ fn watch_file_stream_test<'a>(
         .await
         .context(here!("Failed to push file"))?;
 
-        let query = Query {
-            path: "/a.json".to_string(),
-            r#type: QueryType::Identity,
-        };
-        let watch_stream = cd::watch::watch_file_stream(
-            ctx.client.clone(),
-            &ctx.project.name,
-            &ctx.repo.name,
-            &query,
+        let watch_stream = r.watch_file_stream(
+            &Query::of_json("/a.json")
         )
         .context(here!("Failed to get file watch stream"))?;
-        futures::pin_mut!(watch_stream);
 
         let new_commit_msg = CommitMessage {
             summary: "change content".to_string(),
@@ -125,10 +116,7 @@ fn watch_file_stream_test<'a>(
         }];
         let new_push = async move {
             tokio::time::sleep(Duration::from_millis(1)).await;
-            cd::content::push(
-                &ctx.client,
-                &ctx.project.name,
-                &ctx.repo.name,
+            r.push(
                 Revision::HEAD,
                 new_commit_msg,
                 new_change,
@@ -163,10 +151,10 @@ fn watch_repo_stream_test<'a>(
     ctx: &'a mut TestContext,
 ) -> Pin<Box<dyn Future<Output = Result<()>> + 'a>> {
     async move {
-        let watch_stream =
-            cd::watch::watch_repo_stream(ctx.client.clone(), &ctx.project.name, &ctx.repo.name, "")
-                .context(here!("Failed to get file watch stream"))?;
-        futures::pin_mut!(watch_stream);
+        let r = ctx.client.repo(&ctx.project.name, &ctx.repo.name);
+
+        let watch_stream = r.watch_repo_stream("")
+            .context(here!("Failed to get file watch stream"))?;
 
         let new_commit_msg = CommitMessage {
             summary: "change content".to_string(),
@@ -178,10 +166,7 @@ fn watch_repo_stream_test<'a>(
         }];
         let new_push = async move {
             tokio::time::sleep(Duration::from_millis(10)).await;
-            cd::content::push(
-                &ctx.client,
-                &ctx.project.name,
-                &ctx.repo.name,
+            r.push(
                 Revision::HEAD,
                 new_commit_msg,
                 new_change,

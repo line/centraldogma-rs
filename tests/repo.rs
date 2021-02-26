@@ -1,5 +1,6 @@
 #[macro_use]
 mod utils;
+use cd::RepoService;
 use centraldogma as cd;
 
 use anyhow::{ensure, Context, Result};
@@ -55,28 +56,32 @@ async fn teardown(ctx: TestContext) -> Result<()> {
 
 fn t1<'a>(ctx: &'a mut TestContext) -> Pin<Box<dyn Future<Output = Result<()>> + 'a>> {
     async move {
+        let r = ctx.client.project(&ctx.project.name);
+
         // List repositories
-        let repos = cd::repository::list_by_project_name(&ctx.client, &ctx.project.name)
+        let repos = r
+            .list_repos()
             .await
             .context("Failed to list repositories from project")?;
         ensure!(repos.len() == 2, here!("New project should have 2 repos"));
 
         // Create new repository
         let repo_name = "TestRepo";
-        let new_repo = cd::repository::create(&ctx.client, &ctx.project.name, repo_name)
+        let new_repo = r
+            .create_repo(repo_name)
             .await
             .context("Failed to create new Repository")?;
         ensure!(repo_name == new_repo.name, here!("Wrong repo name"));
 
         // Remove created repository
-        cd::repository::remove(&ctx.client, &ctx.project.name, repo_name)
+        r.remove_repo(repo_name)
             .await
             .context("Failed to remove Repository")?;
 
-        let removed_repos =
-            cd::repository::list_removed_by_project_name(&ctx.client, &ctx.project.name)
-                .await
-                .context("Failed to list removed repositories")?;
+        let removed_repos = r
+            .list_removed_repos()
+            .await
+            .context("Failed to list removed repositories")?;
 
         let mut found = false;
         for repo in removed_repos.iter() {
@@ -87,12 +92,14 @@ fn t1<'a>(ctx: &'a mut TestContext) -> Pin<Box<dyn Future<Output = Result<()>> +
         ensure!(found, here!("Removed repo not showed in removed repo list"));
 
         // Unremove removed repository
-        let unremoved_repo = cd::repository::unremove(&ctx.client, &ctx.project.name, repo_name)
+        let unremoved_repo = r
+            .unremove_repo(repo_name)
             .await
             .context("Failed to unremove removed Repository")?;
         ensure!(unremoved_repo.name == repo_name, here!("Invalid unremove"));
 
-        let repos = cd::repository::list_by_project_name(&ctx.client, &ctx.project.name)
+        let repos = r
+            .list_repos()
             .await
             .context("Failed to list repositories from project")?;
 
@@ -104,19 +111,19 @@ fn t1<'a>(ctx: &'a mut TestContext) -> Pin<Box<dyn Future<Output = Result<()>> +
         }
         ensure!(found, here!("Unremoved repo not showed in repo list"));
 
-        cd::repository::remove(&ctx.client, &ctx.project.name, repo_name)
+        r.remove_repo(repo_name)
             .await
             .context("Failed to remove Repository")?;
 
         // Purge removed repository
-        cd::repository::purge(&ctx.client, &ctx.project.name, repo_name)
+        r.purge_repo(repo_name)
             .await
             .context("Failed to purge removed Repository")?;
 
-        let removed_repos =
-            cd::repository::list_removed_by_project_name(&ctx.client, &ctx.project.name)
-                .await
-                .context("Failed to list removed repositories")?;
+        let removed_repos = r
+            .list_removed_repos()
+            .await
+            .context("Failed to list removed repositories")?;
 
         let mut found = false;
         for repo in removed_repos.iter() {

@@ -34,9 +34,7 @@ pub async fn get_file(
     revision: Revision,
     query: &Query,
 ) -> Result<Entry, Error> {
-    let p = path::content_path(project_name, repo_name, revision, query).ok_or(
-        Error::InvalidParams("JsonPath type only applicable to .json file"),
-    )?;
+    let p = path::content_path(project_name, repo_name, revision, query);
     let req = client.new_request(Method::GET, p, None)?;
 
     let resp = client.request(req).await?;
@@ -99,9 +97,7 @@ pub async fn get_diff(
             "get_diff query path should not be empty",
         ));
     }
-    let p = path::content_compare_path(project_name, repo_name, from_rev, to_rev, query).ok_or(
-        Error::InvalidParams("JsonPath type only applicable to .json file"),
-    )?;
+    let p = path::content_compare_path(project_name, repo_name, from_rev, to_rev, query);
     let req = client.new_request(Method::GET, p, None)?;
 
     let resp = client.request(req).await?;

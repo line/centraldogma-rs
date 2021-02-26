@@ -3,10 +3,13 @@ name = "centraldogma"
 version = "0.1.0"
 authors = ["Hoang Luu <luu.hoang@linecorp.com>"]
 edition = "2018"
+description = "CentralDogma client for Rust"
+license = "Apache-2.0"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+async-trait = "0.1"
 anyhow = "1"
 fastrand = "1.4"
 form_urlencoded = "1"

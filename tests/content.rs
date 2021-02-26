@@ -2,8 +2,7 @@
 mod utils;
 
 use cd::{
-    Change, ChangeContent, CommitDetail, CommitMessage, Entry, EntryContent, Query, QueryType,
-    Revision,
+    Change, ChangeContent, CommitDetail, CommitMessage, ContentService, Entry, EntryContent, Query, Revision,
 };
 use centraldogma as cd;
 
@@ -80,6 +79,8 @@ async fn teardown(ctx: TestContext) -> Result<()> {
 
 fn t<'a>(ctx: &'a mut TestContext) -> Pin<Box<dyn Future<Output = Result<()>> + 'a>> {
     async move {
+        let r = ctx.client.repo(&ctx.project.name, &ctx.repo.name);
+
         // Push data
         let push_result = {
             let commit_msg = CommitMessage {
@@ -96,10 +97,7 @@ fn t<'a>(ctx: &'a mut TestContext) -> Pin<Box<dyn Future<Output = Result<()>> + 
                 content: ChangeContent::UpsertText("text value".to_string()),
             }];
 
-            cd::content::push(
-                &ctx.client,
-                &ctx.project.name,
-                &ctx.repo.name,
+            r.push(
                 Revision::HEAD,
                 commit_msg,
                 changes,
@@ -110,16 +108,9 @@ fn t<'a>(ctx: &'a mut TestContext) -> Pin<Box<dyn Future<Output = Result<()>> + 
 
         // Get single file
         {
-            let file_query = Query {
-                path: "/a.json".to_string(),
-                r#type: QueryType::Identity,
-            };
-            let file: Entry = cd::content::get_file(
-                &ctx.client,
-                &ctx.project.name,
-                &ctx.repo.name,
+            let file: Entry = r.get_file(
                 push_result.revision,
-                &file_query,
+                &Query::of_json("/a.json"),
             )
             .await
             .context(here!("Failed to fetch file content"))?;
@@ -133,16 +124,9 @@ fn t<'a>(ctx: &'a mut TestContext) -> Pin<Box<dyn Future<Output = Result<()>> + 
 
         // Get single file jsonpath
         {
-            let file_query = Query {
-                path: "/a.json".to_string(),
-                r#type: QueryType::JsonPath(vec!["test_key".to_string()]),
-            };
-            let file: Entry = cd::content::get_file(
-                &ctx.client,
-                &ctx.project.name,
-                &ctx.repo.name,
+            let file: Entry = r.get_file(
                 push_result.revision,
-                &file_query,
+                &Query::of_json_path("/a.json", vec!["test_key".to_owned()]).unwrap(),
             )
             .await
             .context(here!("Failed to fetch file content"))?;
@@ -156,10 +140,7 @@ fn t<'a>(ctx: &'a mut TestContext) -> Pin<Box<dyn Future<Output = Result<()>> + 
 
         // Get multiple files
         {
-            let entries = cd::content::get_files(
-                &ctx.client,
-                &ctx.project.name,
-                &ctx.repo.name,
+            let entries = r.get_files(
                 push_result.revision,
                 "a*"
             )
@@ -167,10 +148,7 @@ fn t<'a>(ctx: &'a mut TestContext) -> Pin<Box<dyn Future<Output = Result<()>> + 
             .context(here!("Failed to fetch multiple files"))?;
             ensure!(entries.len() == 1, here!("wrong number of entries returned"));
 
-            let entries = cd::content::get_files(
-                &ctx.client,
-                &ctx.project.name,
-                &ctx.repo.name,
+            let entries = r.get_files(
                 push_result.revision,
                 "*"
             )
@@ -199,10 +177,7 @@ fn t<'a>(ctx: &'a mut TestContext) -> Pin<Box<dyn Future<Output = Result<()>> + 
                 ])),
             }];
 
-            cd::content::push(
-                &ctx.client,
-                &ctx.project.name,
-                &ctx.repo.name,
+            r.push(
                 Revision::HEAD,
                 commit_msg,
                 changes,
@@ -210,17 +185,10 @@ fn t<'a>(ctx: &'a mut TestContext) -> Pin<Box<dyn Future<Output = Result<()>> + 
             .await
             .context(here!("Failed to push file"))?;
 
-            let query = Query {
-                path: "/a.json".to_string(),
-                r#type: QueryType::Identity,
-            };
-            let diff = cd::content::get_diff(
-                &ctx.client,
-                &ctx.project.name,
-                &ctx.repo.name,
+            let diff = r.get_diff(
                 Revision::from(1),
                 Revision::HEAD,
-                &query
+                &Query::identity("/a.json"),
             )
             .await
             .context(here!("Failed to get diff"))?;
@@ -241,10 +209,7 @@ fn t<'a>(ctx: &'a mut TestContext) -> Pin<Box<dyn Future<Output = Result<()>> + 
 
         // Get multiple file diff
         {
-            let diffs = cd::content::get_diffs(
-                &ctx.client,
-                &ctx.project.name,
-                &ctx.repo.name,
+            let diffs = r.get_diffs(
                 Revision::from(1),
                 Revision::HEAD,
                 "*"
