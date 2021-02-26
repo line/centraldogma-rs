@@ -1,3 +1,4 @@
+//! Project-related APIs
 use crate::{
     client::{self, status_unwrap, Client},
     model::Project,
@@ -8,7 +9,7 @@ use reqwest::{Body, Method};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 
-/// Return list of available projects
+/// Retrieves the list of the projects.
 pub async fn list(client: &Client) -> Result<Vec<Project>, client::Error> {
     let req = client.new_request(Method::GET, path::projects_path(), None)?;
     let resp = client.request(req).await?;
@@ -22,7 +23,9 @@ pub async fn list(client: &Client) -> Result<Vec<Project>, client::Error> {
     Ok(result)
 }
 
-/// Returns list of project name where status is removed
+/// Retrieves the list of the removed projects,
+/// which can be [unremoved](unremove())
+/// or [purged](purge()).
 pub async fn list_removed(client: &Client) -> Result<Vec<String>, client::Error> {
     #[derive(Deserialize)]
     struct RemovedProject {
@@ -56,7 +59,7 @@ pub async fn create(client: &Client, name: &str) -> Result<Project, client::Erro
     Ok(result)
 }
 
-/// Soft-remove a project with provided name
+/// Removes a project. A removed project can be [unremoved](unremove()).
 pub async fn remove(client: &Client, name: &str) -> Result<(), client::Error> {
     let req = client.new_request(Method::DELETE, path::project_path(name), None)?;
 
@@ -81,7 +84,7 @@ pub async fn unremove(client: &Client, name: &str) -> Result<Project, client::Er
     Ok(result)
 }
 
-/// Hard-remove a project with provided name, point of no return
+/// Purges a project that was removed before.
 pub async fn purge(client: &Client, name: &str) -> Result<(), client::Error> {
     let req = client.new_request(Method::DELETE, path::removed_project_path(name), None)?;
 

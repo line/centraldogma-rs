@@ -1,3 +1,4 @@
+//! Content-related APIs
 use crate::{
     client::status_unwrap,
     model::{Change, Commit, CommitMessage, Entry, ListEntry, PushResult, Query, Revision},
@@ -7,6 +8,15 @@ use crate::{
 use reqwest::{Body, Method};
 use serde::Serialize;
 
+/// Retrieves the list of the files at the specified [`Revision`] matched by the path pattern.
+///
+/// A path pattern is a variant of glob:
+///   * `"/**"` - find all files recursively
+///   * `"*.json"` - find all JSON files recursively
+///   * `"/foo/*.json"` - find all JSON files under the directory /foo
+///   * `"/*/foo.txt"` - find all files named foo.txt at the second depth level
+///   * `"*.json,/bar/*.txt"` - use comma to specify more than one pattern.
+///   A file will be matched if any pattern matches.
 pub async fn list_files(
     client: &Client,
     project_name: &str,
@@ -27,6 +37,7 @@ pub async fn list_files(
     Ok(result)
 }
 
+/// Queries a file at the specified [`Revision`] and path with the specified [`Query`].
 pub async fn get_file(
     client: &Client,
     project_name: &str,
@@ -44,6 +55,15 @@ pub async fn get_file(
     Ok(result)
 }
 
+/// Retrieves the files at the specified [`Revision`] matched by the path pattern.
+///
+/// A path pattern is a variant of glob:
+///   * `"/**"` - find all files recursively
+///   * `"*.json"` - find all JSON files recursively
+///   * `"/foo/*.json"` - find all JSON files under the directory /foo
+///   * `"/*/foo.txt"` - find all files named foo.txt at the second depth level
+///   * `"*.json,/bar/*.txt"` - use comma to specify more than one pattern.
+///   A file will be matched if any pattern matches.
 pub async fn get_files(
     client: &Client,
     project_name: &str,
@@ -64,6 +84,11 @@ pub async fn get_files(
     Ok(result)
 }
 
+/// Retrieves the history of the repository of the files matched by the given
+/// path pattern between two [`Revision`]s.
+/// Note that this method does not retrieve the diffs but only metadata about the changes.
+/// Use [get_diff](#tymethod.get_diff) or
+/// [get_diffs](#tymethod.get_diffs) to retrieve the diffs
 pub async fn get_history(
     client: &Client,
     project_name: &str,
@@ -84,6 +109,7 @@ pub async fn get_history(
     Ok(result)
 }
 
+/// Returns the diff of a file between two [`Revision`]s.
 pub async fn get_diff(
     client: &Client,
     project_name: &str,
@@ -102,6 +128,16 @@ pub async fn get_diff(
     Ok(result)
 }
 
+/// Retrieves the diffs of the files matched by the given
+/// path pattern between two [`Revision`]s.
+///
+/// A path pattern is a variant of glob:
+///   * `"/**"` - find all files recursively
+///   * `"*.json"` - find all JSON files recursively
+///   * `"/foo/*.json"` - find all JSON files under the directory /foo
+///   * `"/*/foo.txt"` - find all files named foo.txt at the second depth level
+///   * `"*.json,/bar/*.txt"` - use comma to specify more than one pattern.
+///   A file will be matched if any pattern matches.
 pub async fn get_diffs(
     client: &Client,
     project_name: &str,
@@ -127,6 +163,7 @@ struct Push {
     changes: Vec<Change>,
 }
 
+/// Pushes the specified [`Change`]s to the repository.
 pub async fn push(
     client: &Client,
     project_name: &str,

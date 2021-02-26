@@ -1,3 +1,4 @@
+//! Watch-related APIs
 use std::time::Duration;
 
 use crate::{
@@ -95,6 +96,8 @@ fn watch_stream<D: Watchable>(client: Client, path: String) -> impl Stream<Item 
     })
 }
 
+/// Returns a stream which output a [`WatchFileResult`] when the result of the
+/// given [`Query`] becomes available or changes
 pub fn watch_file_stream(
     client: Client,
     project_name: &str,
@@ -106,6 +109,8 @@ pub fn watch_file_stream(
     Ok(watch_stream(client, p))
 }
 
+/// Returns a stream which output a [`WatchRepoResult`] when the repository has a new commit
+/// that contains the changes for the files matched by the given `path_pattern`.
 pub fn watch_repo_stream(
     client: Client,
     project_name: &str,

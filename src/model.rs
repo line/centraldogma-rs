@@ -1,3 +1,4 @@
+//! Data models of CentralDogma
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 
 /// A revision number of a [`Commit`].
@@ -40,7 +41,9 @@ impl Revision {
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Author {
+    /// Name of this author.
     pub name: String,
+    /// Email of this author.
     pub email: String,
 }
 

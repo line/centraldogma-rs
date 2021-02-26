@@ -310,22 +310,22 @@ pub trait ContentService {
     /// Retrieves the files at the specified [`Revision`] matched by the path pattern.
     ///
     /// A path pattern is a variant of glob:
-    ///   * "/**" - find all files recursively
-    ///   * "*.json" - find all JSON files recursively
-    ///   * "/foo/*.json" - find all JSON files under the directory /foo
-    ///   * "/*/foo.txt" - find all files named foo.txt at the second depth level
-    ///   * "*.json,/bar/*.txt" - use comma to specify more than one pattern.
+    ///   * `"/**"` - find all files recursively
+    ///   * `"*.json"` - find all JSON files recursively
+    ///   * `"/foo/*.json"` - find all JSON files under the directory /foo
+    ///   * `"/*/foo.txt"` - find all files named foo.txt at the second depth level
+    ///   * `"*.json,/bar/*.txt"` - use comma to specify more than one pattern.
     ///   A file will be matched if any pattern matches.
     async fn get_files(&self, revision: Revision, path_pattern: &str) -> Result<Vec<Entry>, Error>;
 
     /// Retrieves the list of the files at the specified [`Revision`] matched by the path pattern.
     ///
     /// A path pattern is a variant of glob:
-    ///   * "/**" - find all files recursively
-    ///   * "*.json" - find all JSON files recursively
-    ///   * "/foo/*.json" - find all JSON files under the directory /foo
-    ///   * "/*/foo.txt" - find all files named foo.txt at the second depth level
-    ///   * "*.json,/bar/*.txt" - use comma to specify more than one pattern.
+    ///   * `"/**"` - find all files recursively
+    ///   * `"*.json"` - find all JSON files recursively
+    ///   * `"/foo/*.json"` - find all JSON files under the directory /foo
+    ///   * `"/*/foo.txt"` - find all files named foo.txt at the second depth level
+    ///   * `"*.json,/bar/*.txt"` - use comma to specify more than one pattern.
     ///   A file will be matched if any pattern matches.
     async fn list_files(
         &self,
@@ -345,11 +345,11 @@ pub trait ContentService {
     /// path pattern between two [`Revision`]s.
     ///
     /// A path pattern is a variant of glob:
-    ///   * "/**" - find all files recursively
-    ///   * "*.json" - find all JSON files recursively
-    ///   * "/foo/*.json" - find all JSON files under the directory /foo
-    ///   * "/*/foo.txt" - find all files named foo.txt at the second depth level
-    ///   * "*.json,/bar/*.txt" - use comma to specify more than one pattern.
+    ///   * `"/**"` - find all files recursively
+    ///   * `"*.json"` - find all JSON files recursively
+    ///   * `"/foo/*.json"` - find all JSON files under the directory /foo
+    ///   * `"/*/foo.txt"` - find all files named foo.txt at the second depth level
+    ///   * `"*.json,/bar/*.txt"` - use comma to specify more than one pattern.
     ///   A file will be matched if any pattern matches.
     async fn get_diffs(
         &self,

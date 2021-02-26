@@ -1,3 +1,4 @@
+//! Repository-related APIs
 use crate::{
     client::{self, status_unwrap, Client},
     model::Repository,
@@ -8,6 +9,7 @@ use reqwest::{Body, Method};
 use serde::Serialize;
 use serde_json::json;
 
+/// Retrieves the list of the repositories from the specified project.
 pub async fn list_by_project_name(
     client: &Client,
     project_name: &str,
@@ -21,6 +23,8 @@ pub async fn list_by_project_name(
     Ok(result)
 }
 
+/// Retrieves the list of the removed repositories from the specified project ,
+/// which can be [unremoved](unremove).
 pub async fn list_removed_by_project_name(
     client: &Client,
     project_name: &str,
@@ -37,6 +41,7 @@ pub async fn list_removed_by_project_name(
     Ok(result)
 }
 
+/// Creates a repository in the specified project.
 pub async fn create(
     client: &Client,
     project_name: &str,
@@ -59,6 +64,8 @@ pub async fn create(
     Ok(result)
 }
 
+/// Removes a repository, removed repository can be
+/// [unremoved](unremove).
 pub async fn remove(
     client: &Client,
     project_name: &str,
@@ -76,6 +83,7 @@ pub async fn remove(
     Ok(())
 }
 
+/// Unremoves a repository.
 pub async fn unremove(
     client: &Client,
     project_name: &str,
@@ -98,6 +106,7 @@ pub async fn unremove(
     Ok(result)
 }
 
+/// Purges a repository that was removed before.
 pub async fn purge(
     client: &Client,
     project_name: &str,
