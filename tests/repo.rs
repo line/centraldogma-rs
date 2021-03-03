@@ -89,7 +89,7 @@ fn t1<'a>(ctx: &'a mut TestContext) -> Pin<Box<dyn Future<Output = Result<()>> +
 
         let mut found = false;
         for repo in removed_repos.iter() {
-            if repo.name == repo_name {
+            if repo == repo_name {
                 found = true;
             }
         }
@@ -131,7 +131,7 @@ fn t1<'a>(ctx: &'a mut TestContext) -> Pin<Box<dyn Future<Output = Result<()>> +
 
         let mut found = false;
         for repo in removed_repos.iter() {
-            if repo.name == repo_name {
+            if repo == repo_name {
                 found = true;
             }
         }

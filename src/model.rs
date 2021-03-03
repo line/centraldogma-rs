@@ -16,8 +16,14 @@ use serde::{de::DeserializeOwned, Deserialize, Serialize};
 ///
 /// A revision with a negative integer is called 'relative revision'.
 /// By contrast, a revision with a positive integer is called 'absolute revision'.
-#[derive(Debug, Serialize, Deserialize, Clone, Copy)]
+#[derive(Debug, Serialize, Deserialize, Clone, Copy, PartialEq, Eq)]
 pub struct Revision(i64);
+
+impl Revision {
+    pub fn as_i64(&self) -> i64 {
+        self.0
+    }
+}
 
 impl std::fmt::Display for Revision {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -38,7 +44,7 @@ impl Revision {
 }
 
 /// Creator of a project or repository or commit
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct Author {
     /// Name of this author.
@@ -60,7 +66,7 @@ pub struct Project {
     /// Url of this project
     pub url: Option<String>,
     /// When the project was created
-    pub created_at: String,
+    pub created_at: Option<String>,
 }
 
 /// Repository information
@@ -70,9 +76,9 @@ pub struct Repository {
     /// Name of this repository.
     pub name: String,
     /// The author who initially created this repository.
-    pub creator: Option<Author>,
+    pub creator: Author,
     /// Head [`Revision`] of the repository.
-    pub head_revision: Option<Revision>,
+    pub head_revision: Revision,
     /// Url of this repository.
     pub url: Option<String>,
     /// When the repository was created.
@@ -80,7 +86,7 @@ pub struct Repository {
 }
 
 /// The content of an [`Entry`]
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 #[serde(tag = "type", content = "content")]
 pub enum EntryContent {
@@ -109,8 +115,18 @@ pub struct Entry {
     pub modified_at: Option<String>,
 }
 
+impl Entry {
+    pub fn entry_type(&self) -> EntryType {
+        match self.content {
+            EntryContent::Json(_) => EntryType::Json,
+            EntryContent::Text(_) => EntryType::Text,
+            EntryContent::Directory => EntryType::Directory,
+        }
+    }
+}
+
 /// The type of a [`ListEntry`]
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum EntryType {
     /// A UTF-8 encoded JSON file.
@@ -123,7 +139,7 @@ pub enum EntryType {
 
 /// A metadata of a file or a directory in a repository.
 /// ListEntry has no content.
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct ListEntry {
     pub path: String,
@@ -207,7 +223,7 @@ impl Query {
 }
 
 /// Typed content of a [`CommitMessage`]
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 #[serde(tag = "markup", content = "detail")]
 pub enum CommitDetail {
@@ -218,7 +234,7 @@ pub enum CommitDetail {
 }
 
 /// Description of a [`Commit`]
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct CommitMessage {
     /// Summary of this commit message
@@ -232,8 +248,10 @@ pub struct CommitMessage {
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PushResult {
+    /// Revision of this commit.
     pub revision: Revision,
-    pub pushed_at: String,
+    /// When this commit was pushed.
+    pub pushed_at: Option<String>,
 }
 
 /// A set of Changes and its metadata.
@@ -243,9 +261,9 @@ pub struct Commit {
     /// Revision of this commit.
     pub revision: Revision,
     /// Author of this commit.
-    pub author: Option<Author>,
+    pub author: Author,
     /// Description of this commit.
-    pub commit_message: Option<CommitMessage>,
+    pub commit_message: CommitMessage,
     /// When this commit was pushed.
     pub pushed_at: Option<String>,
 }

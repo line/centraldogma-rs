@@ -169,6 +169,20 @@ fn t<'a>(ctx: &'a mut TestContext) -> Pin<Box<dyn Future<Output = Result<()>> + 
             );
         }
 
+        // Get history
+        {
+            let commits = r.get_history(
+                Revision::INIT,
+                Revision::HEAD,
+                "/**",
+                20
+            )
+            .await
+            .context(here!("Failed to get history"))?;
+
+            println!("History: {:?}", &commits);
+        }
+
         // Get multiple files
         {
             let entries = r.get_files(

@@ -228,3 +228,297 @@ impl<'a> ContentService for RepoClient<'a> {
         Ok(result)
     }
 }
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use crate::{
+        model::{Author, EntryContent, EntryType, Revision},
+        Client,
+    };
+    use httpmock::{
+        Method::{DELETE, GET, PATCH, POST},
+        MockServer,
+    };
+
+    #[tokio::test]
+    async fn test_list_files() {
+        let server = MockServer::start();
+        let mock = server.mock(|when, then| {
+            when.path("/api/v1/projects/foo/repos/bar/list/**")
+                .method(GET)
+                .header("Authorization", "Bearer anonymous");
+            then.status(200).body(
+                r#"[
+                    {"path":"/a.json", "type":"JSON"},
+                    {"path":"/b.txt", "type":"TEXT"}
+                ]"#,
+            );
+        });
+
+        let client = Client::new(&server.base_url(), None).await.unwrap();
+        let entries = client
+            .repo("foo", "bar")
+            .list_files(Revision::HEAD, "/**")
+            .await
+            .unwrap();
+
+        mock.assert();
+        let expected = [("/a.json", EntryType::Json), ("/b.txt", EntryType::Text)];
+
+        for (p, e) in entries.iter().zip(expected.iter()) {
+            assert_eq!(p.path, e.0);
+            assert_eq!(p.r#type, e.1);
+        }
+    }
+
+    #[tokio::test]
+    async fn test_list_files_with_revision() {
+        let server = MockServer::start();
+        let mock = server.mock(|when, then| {
+            when.path("/api/v1/projects/foo/repos/bar/list/**")
+                .method(GET)
+                .query_param("revision", "2")
+                .header("Authorization", "Bearer anonymous");
+            then.status(200).body(
+                r#"[
+                    {"path":"/a.json", "type":"JSON"},
+                    {"path":"/b.txt", "type":"TEXT"}
+                ]"#,
+            );
+        });
+
+        let client = Client::new(&server.base_url(), None).await.unwrap();
+        let entries = client
+            .repo("foo", "bar")
+            .list_files(Revision::from(2), "/**")
+            .await
+            .unwrap();
+
+        mock.assert();
+        let expected = [("/a.json", EntryType::Json), ("/b.txt", EntryType::Text)];
+
+        for (p, e) in entries.iter().zip(expected.iter()) {
+            assert_eq!(p.path, e.0);
+            assert_eq!(p.r#type, e.1);
+        }
+    }
+
+    #[tokio::test]
+    async fn test_get_file() {
+        let server = MockServer::start();
+        let mock = server.mock(|when, then| {
+            when.path("/api/v1/projects/foo/repos/bar/contents/b.txt")
+                .method(GET)
+                .header("Authorization", "Bearer anonymous");
+            then.status(200).body(
+                r#"{
+                    "path":"/b.txt",
+                    "type":"TEXT",
+                    "revision":2,
+                    "url": "/api/v1/projects/foo/repos/bar/contents/b.txt",
+                    "content":"hello world~!"
+                }"#,
+            );
+        });
+
+        let client = Client::new(&server.base_url(), None).await.unwrap();
+        let entry = client
+            .repo("foo", "bar")
+            .get_file(Revision::HEAD, &Query::identity("/b.txt").unwrap())
+            .await
+            .unwrap();
+
+        mock.assert();
+        assert_eq!(entry.path, "/b.txt");
+        assert!(matches!(entry.content, EntryContent::Text(t) if t == "hello world~!"));
+    }
+
+    #[tokio::test]
+    async fn test_get_file_json() {
+        let server = MockServer::start();
+        let mock = server.mock(|when, then| {
+            when.path("/api/v1/projects/foo/repos/bar/contents/a.json")
+                .method(GET)
+                .header("Authorization", "Bearer anonymous");
+            then.status(200).body(
+                r#"{
+                    "path":"/a.json",
+                    "type":"JSON",
+                    "revision":2,
+                    "url": "/api/v1/projects/foo/repos/bar/contents/a.json",
+                    "content":{"a":"b"}
+                }"#,
+            );
+        });
+
+        let client = Client::new(&server.base_url(), None).await.unwrap();
+        let entry = client
+            .repo("foo", "bar")
+            .get_file(Revision::HEAD, &Query::identity("/a.json").unwrap())
+            .await
+            .unwrap();
+
+        mock.assert();
+        assert_eq!(entry.path, "/a.json");
+        let expected = serde_json::json!({"a": "b"});
+        assert!(matches!(entry.content, EntryContent::Json(js) if js == expected));
+    }
+
+    #[tokio::test]
+    async fn test_get_file_json_path() {
+        let server = MockServer::start();
+        let mock = server.mock(|when, then| {
+            when.path("/api/v1/projects/foo/repos/bar/contents/a.json")
+                .query_param("jsonpath", "$.a")
+                .method(GET)
+                .header("Authorization", "Bearer anonymous");
+            then.status(200).body(
+                r#"{
+                    "path":"/a.json",
+                    "type":"JSON",
+                    "revision":2,
+                    "url": "/api/v1/projects/foo/repos/bar/contents/a.json",
+                    "content":"b"
+                }"#,
+            );
+        });
+
+        let client = Client::new(&server.base_url(), None).await.unwrap();
+        let query = Query::of_json_path("/a.json", vec!["$.a".to_string()]).unwrap();
+        let entry = client
+            .repo("foo", "bar")
+            .get_file(Revision::HEAD, &query)
+            .await
+            .unwrap();
+
+        mock.assert();
+        assert_eq!(entry.path, "/a.json");
+        let expected = serde_json::json!("b");
+        assert!(matches!(entry.content, EntryContent::Json(js) if js == expected));
+    }
+
+    #[tokio::test]
+    async fn test_get_file_json_path_and_revision() {
+        let server = MockServer::start();
+        let mock = server.mock(|when, then| {
+            when.path("/api/v1/projects/foo/repos/bar/contents/a.json")
+                .query_param("jsonpath", "$.a")
+                .query_param("revision", "5")
+                .method(GET)
+                .header("Authorization", "Bearer anonymous");
+            then.status(200).body(
+                r#"{
+                    "path":"/a.json",
+                    "type":"JSON",
+                    "revision":2,
+                    "url": "/api/v1/projects/foo/repos/bar/contents/a.json",
+                    "content":"b"
+                }"#,
+            );
+        });
+
+        let client = Client::new(&server.base_url(), None).await.unwrap();
+        let query = Query::of_json_path("/a.json", vec!["$.a".to_string()]).unwrap();
+        let entry = client
+            .repo("foo", "bar")
+            .get_file(Revision::from(5), &query)
+            .await
+            .unwrap();
+
+        mock.assert();
+        assert_eq!(entry.path, "/a.json");
+        let expected = serde_json::json!("b");
+        assert!(matches!(entry.content, EntryContent::Json(js) if js == expected));
+    }
+
+    #[tokio::test]
+    async fn test_get_files() {
+        let server = MockServer::start();
+        let mock = server.mock(|when, then| {
+            when.path("/api/v1/projects/foo/repos/bar/contents/**")
+                .method(GET)
+                .header("Authorization", "Bearer anonymous");
+            then.status(200).body(
+                r#"[{
+                    "path":"/a.json",
+                    "type":"JSON",
+                    "revision":2,
+                    "url": "/api/v1/projects/foo/repos/bar/contents/a.json",
+                    "content":{"a":"b"}
+                }, {
+                    "path":"/b.txt",
+                    "type":"TEXT",
+                    "revision":2,
+                    "url": "/api/v1/projects/foo/repos/bar/contents/b.txt",
+                    "content":"hello world~!"
+                }]"#,
+            );
+        });
+
+        let client = Client::new(&server.base_url(), None).await.unwrap();
+        let entries = client
+            .repo("foo", "bar")
+            .get_files(Revision::HEAD, "/**")
+            .await
+            .unwrap();
+
+        mock.assert();
+        let expected = [
+            ("/a.json", EntryContent::Json(serde_json::json!({"a":"b"}))),
+            ("/b.txt", EntryContent::Text("hello world~!".to_string())),
+        ];
+
+        for (p, e) in entries.iter().zip(expected.iter()) {
+            assert_eq!(p.path, e.0);
+            assert_eq!(p.content, e.1);
+        }
+    }
+
+    #[tokio::test]
+    async fn test_get_history() {
+        let server = MockServer::start();
+        let mock = server.mock(|when, then| {
+            when.path("/api/v1/projects/foo/repos/bar/commits/-2")
+                .method(GET)
+                .query_param("to", "-1")
+                .query_param("maxCommits", "2")
+                .header("Authorization", "Bearer anonymous");
+
+            then.status(200).body(r#"[{
+                "revision":1,
+                "author":{"name":"minux", "email":"minux@m.x"},
+                "commitMessage":{"summary":"Add a.json"}
+            }, {
+                "revision":2,
+                "author":{"name":"minux", "email":"minux@m.x"},
+                "commitMessage":{"summary":"Edit a.json"}
+            }]"#,
+            );
+        });
+
+        let client = Client::new(&server.base_url(), None).await.unwrap();
+        let commits = client
+            .repo("foo", "bar")
+            .get_history(Revision::from(-2), Revision::HEAD, "/**", 2)
+            .await
+            .unwrap();
+
+        let expected = [(
+            1,
+            Author { name: "minux".to_string(), email: "minux@m.x".to_string() },
+            CommitMessage { summary: "Add a.json".to_string(), detail: None }
+        ), (
+            2,
+            Author { name: "minux".to_string(), email: "minux@m.x".to_string() },
+            CommitMessage { summary: "Edit a.json".to_string(), detail: None }
+        )];
+
+        mock.assert();
+        for (p, e) in commits.iter().zip(expected.iter()) {
+            assert_eq!(p.revision.as_i64(), e.0);
+            assert_eq!(p.author, e.1);
+            assert_eq!(p.commit_message, e.2);
+        }
+    }
+}
