@@ -1,125 +1,129 @@
 //! Repository-related APIs
 use crate::{
-    client::{self, status_unwrap, Client},
+    client::{status_unwrap, Error, ProjectClient},
     model::Repository,
     path,
 };
 
+use async_trait::async_trait;
 use reqwest::{Body, Method};
 use serde::Serialize;
 use serde_json::json;
 
-/// Retrieves the list of the repositories from the specified project.
-pub async fn list_by_project_name(
-    client: &Client,
-    project_name: &str,
-) -> Result<Vec<Repository>, client::Error> {
-    let req = client.new_request(Method::GET, path::repos_path(project_name), None)?;
+/// Repository-related APIs
+#[async_trait]
+pub trait RepoService {
+    /// Retrieves the list of the repositories.
+    async fn list_repos(&self) -> Result<Vec<Repository>, Error>;
 
-    let resp = client.request(req).await?;
-    let ok_resp = status_unwrap(resp).await?;
-    let result = ok_resp.json().await?;
+    /// Retrieves the list of the removed repositories, which can be
+    /// [unremoved](#tymethod.unremove_repo).
+    async fn list_removed_repos(&self) -> Result<Vec<Repository>, Error>;
 
-    Ok(result)
+    /// Creates a repository.
+    async fn create_repo(&self, repo_name: &str) -> Result<Repository, Error>;
+
+    /// Removes a repository, removed repository can be
+    /// [unremoved](#tymethod.unremove_repo).
+    async fn remove_repo(&self, repo_name: &str) -> Result<(), Error>;
+
+    /// Unremoves a repository.
+    async fn unremove_repo(&self, repo_name: &str) -> Result<Repository, Error>;
+
+    /// Purges a repository that was removed before.
+    async fn purge_repo(&self, repo_name: &str) -> Result<(), Error>;
 }
 
-/// Retrieves the list of the removed repositories from the specified project ,
-/// which can be [unremoved](unremove).
-pub async fn list_removed_by_project_name(
-    client: &Client,
-    project_name: &str,
-) -> Result<Vec<Repository>, client::Error> {
-    let req = client.new_request(Method::GET, path::removed_repos_path(project_name), None)?;
+#[async_trait]
+impl<'a> RepoService for ProjectClient<'a> {
+    async fn list_repos(&self) -> Result<Vec<Repository>, Error> {
+        let req = self
+            .client
+            .new_request(Method::GET, path::repos_path(self.project), None)?;
 
-    let resp = client.request(req).await?;
-    let ok_resp = status_unwrap(resp).await?;
-    if ok_resp.status().as_u16() == 204 {
-        return Ok(Vec::new());
-    }
-    let result = ok_resp.json().await?;
+        let resp = self.client.request(req).await?;
+        let ok_resp = status_unwrap(resp).await?;
+        let result = ok_resp.json().await?;
 
-    Ok(result)
-}
-
-/// Creates a repository in the specified project.
-pub async fn create(
-    client: &Client,
-    project_name: &str,
-    repo_name: &str,
-) -> Result<Repository, client::Error> {
-    #[derive(Serialize)]
-    struct CreateRepo<'a> {
-        name: &'a str,
+        Ok(result)
     }
 
-    let body = serde_json::to_vec(&CreateRepo { name: repo_name })?;
-    let body = Body::from(body);
+    async fn list_removed_repos(&self) -> Result<Vec<Repository>, Error> {
+        let req =
+            self.client
+                .new_request(Method::GET, path::removed_repos_path(self.project), None)?;
 
-    let req = client.new_request(Method::POST, path::repos_path(project_name), Some(body))?;
+        let resp = self.client.request(req).await?;
+        let ok_resp = status_unwrap(resp).await?;
+        if ok_resp.status().as_u16() == 204 {
+            return Ok(Vec::new());
+        }
+        let result = ok_resp.json().await?;
 
-    let resp = client.request(req).await?;
-    let resp_body = status_unwrap(resp).await?.bytes().await?;
-    let result = serde_json::from_slice(&resp_body[..])?;
+        Ok(result)
+    }
 
-    Ok(result)
-}
+    async fn create_repo(&self, repo_name: &str) -> Result<Repository, Error> {
+        #[derive(Serialize)]
+        struct CreateRepo<'a> {
+            name: &'a str,
+        }
 
-/// Removes a repository, removed repository can be
-/// [unremoved](unremove).
-pub async fn remove(
-    client: &Client,
-    project_name: &str,
-    repo_name: &str,
-) -> Result<(), client::Error> {
-    let req = client.new_request(
-        Method::DELETE,
-        path::repo_path(project_name, repo_name),
-        None,
-    )?;
+        let body = serde_json::to_vec(&CreateRepo { name: repo_name })?;
+        let body = Body::from(body);
 
-    let resp = client.request(req).await?;
-    let _ = status_unwrap(resp).await?;
+        let req =
+            self.client
+                .new_request(Method::POST, path::repos_path(self.project), Some(body))?;
 
-    Ok(())
-}
+        let resp = self.client.request(req).await?;
+        let resp_body = status_unwrap(resp).await?.bytes().await?;
+        let result = serde_json::from_slice(&resp_body[..])?;
 
-/// Unremoves a repository.
-pub async fn unremove(
-    client: &Client,
-    project_name: &str,
-    repo_name: &str,
-) -> Result<Repository, client::Error> {
-    let body: Vec<u8> = serde_json::to_vec(&json!([
-        {"op":"replace", "path":"/status", "value":"active"}
-    ]))?;
-    let body = Body::from(body);
-    let req = client.new_request(
-        Method::PATCH,
-        path::repo_path(project_name, repo_name),
-        Some(body),
-    )?;
+        Ok(result)
+    }
 
-    let resp = client.request(req).await?;
-    let ok_resp = status_unwrap(resp).await?;
-    let result = ok_resp.json().await?;
+    async fn remove_repo(&self, repo_name: &str) -> Result<(), Error> {
+        let req = self.client.new_request(
+            Method::DELETE,
+            path::repo_path(self.project, repo_name),
+            None,
+        )?;
 
-    Ok(result)
-}
+        let resp = self.client.request(req).await?;
+        let _ = status_unwrap(resp).await?;
 
-/// Purges a repository that was removed before.
-pub async fn purge(
-    client: &Client,
-    project_name: &str,
-    repo_name: &str,
-) -> Result<(), client::Error> {
-    let req = client.new_request(
-        Method::DELETE,
-        path::removed_repo_path(project_name, repo_name),
-        None,
-    )?;
+        Ok(())
+    }
 
-    let resp = client.request(req).await?;
-    let _ = status_unwrap(resp).await?;
+    async fn unremove_repo(&self, repo_name: &str) -> Result<Repository, Error> {
+        let body: Vec<u8> = serde_json::to_vec(&json!([
+            {"op":"replace", "path":"/status", "value":"active"}
+        ]))?;
+        let body = Body::from(body);
+        let req = self.client.new_request(
+            Method::PATCH,
+            path::repo_path(self.project, repo_name),
+            Some(body),
+        )?;
 
-    Ok(())
+        let resp = self.client.request(req).await?;
+        let ok_resp = status_unwrap(resp).await?;
+        let result = ok_resp.json().await?;
+
+        Ok(result)
+    }
+
+    async fn purge_repo(&self, repo_name: &str) -> Result<(), Error> {
+        let req = self.client.new_request(
+            Method::DELETE,
+            path::removed_repo_path(self.project, repo_name),
+            None,
+        )?;
+
+        let resp = self.client.request(req).await?;
+        let _ = status_unwrap(resp).await?;
+
+        Ok(())
+    }
 }

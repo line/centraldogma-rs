@@ -1,95 +1,115 @@
 //! Project-related APIs
 use crate::{
-    client::{self, status_unwrap, Client},
+    client::{status_unwrap, Client, Error},
     model::Project,
     path,
 };
 
+use async_trait::async_trait;
 use reqwest::{Body, Method};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 
-/// Retrieves the list of the projects.
-pub async fn list(client: &Client) -> Result<Vec<Project>, client::Error> {
-    let req = client.new_request(Method::GET, path::projects_path(), None)?;
-    let resp = client.request(req).await?;
-    let ok_resp = status_unwrap(resp).await?;
+/// Project-related APIs
+#[async_trait]
+pub trait ProjectService {
+    /// Retrieves the list of the projects.
+    async fn list_projects(&self) -> Result<Vec<Project>, Error>;
 
-    if let Some(0) = ok_resp.content_length() {
-        return Ok(Vec::new());
+    /// Retrieves the list of the removed projects,
+    /// which can be [unremoved](#tymethod.unremove_project)
+    /// or [purged](#tymethod.purge_project).
+    async fn list_removed_projects(&self) -> Result<Vec<String>, Error>;
+
+    /// Creates a project.
+    async fn create_project(&self, name: &str) -> Result<Project, Error>;
+
+    /// Removes a project. A removed project can be [unremoved](#tymethod.unremove_project).
+    async fn remove_project(&self, name: &str) -> Result<(), Error>;
+
+    /// Unremoves a project.
+    async fn unremove_project(&self, name: &str) -> Result<Project, Error>;
+
+    /// Purges a project that was removed before.
+    async fn purge_project(&self, name: &str) -> Result<(), Error>;
+}
+
+#[async_trait]
+impl ProjectService for Client {
+    async fn list_projects(&self) -> Result<Vec<Project>, Error> {
+        let req = self.new_request(Method::GET, path::projects_path(), None)?;
+        let resp = self.request(req).await?;
+        let ok_resp = status_unwrap(resp).await?;
+
+        if let Some(0) = ok_resp.content_length() {
+            return Ok(Vec::new());
+        }
+        let result = ok_resp.json().await?;
+
+        Ok(result)
     }
-    let result = ok_resp.json().await?;
 
-    Ok(result)
-}
+    async fn list_removed_projects(&self) -> Result<Vec<String>, Error> {
+        #[derive(Deserialize)]
+        struct RemovedProject {
+            name: String,
+        }
+        let req = self.new_request(Method::GET, path::removed_projects_path(), None)?;
+        let resp = self.request(req).await?;
+        let ok_resp = status_unwrap(resp).await?;
 
-/// Retrieves the list of the removed projects,
-/// which can be [unremoved](unremove())
-/// or [purged](purge()).
-pub async fn list_removed(client: &Client) -> Result<Vec<String>, client::Error> {
-    #[derive(Deserialize)]
-    struct RemovedProject {
-        name: String,
-    }
-    let req = client.new_request(Method::GET, path::removed_projects_path(), None)?;
-    let resp = client.request(req).await?;
-    let ok_resp = status_unwrap(resp).await?;
+        let result: Vec<RemovedProject> = ok_resp.json().await?;
+        let result = result.into_iter().map(|p| p.name).collect();
 
-    let result: Vec<RemovedProject> = ok_resp.json().await?;
-    let result = result.into_iter().map(|p| p.name).collect();
-
-    Ok(result)
-}
-
-/// Create a new project with provided name
-pub async fn create(client: &Client, name: &str) -> Result<Project, client::Error> {
-    #[derive(Serialize)]
-    struct CreateProject<'a> {
-        name: &'a str,
+        Ok(result)
     }
 
-    let body: Vec<u8> = serde_json::to_vec(&CreateProject { name })?;
-    let body = Body::from(body);
-    let req = client.new_request(Method::POST, path::projects_path(), Some(body))?;
+    async fn create_project(&self, name: &str) -> Result<Project, Error> {
+        #[derive(Serialize)]
+        struct CreateProject<'a> {
+            name: &'a str,
+        }
 
-    let resp = client.request(req).await?;
-    let ok_resp = status_unwrap(resp).await?;
-    let result = ok_resp.json().await?;
+        let body: Vec<u8> = serde_json::to_vec(&CreateProject { name })?;
+        let body = Body::from(body);
+        let req = self.new_request(Method::POST, path::projects_path(), Some(body))?;
 
-    Ok(result)
-}
+        let resp = self.request(req).await?;
+        let ok_resp = status_unwrap(resp).await?;
+        let result = ok_resp.json().await?;
 
-/// Removes a project. A removed project can be [unremoved](unremove()).
-pub async fn remove(client: &Client, name: &str) -> Result<(), client::Error> {
-    let req = client.new_request(Method::DELETE, path::project_path(name), None)?;
+        Ok(result)
+    }
 
-    let resp = client.request(req).await?;
-    let _ = status_unwrap(resp).await?;
+    async fn remove_project(&self, name: &str) -> Result<(), Error> {
+        let req = self.new_request(Method::DELETE, path::project_path(name), None)?;
 
-    Ok(())
-}
+        let resp = self.request(req).await?;
+        let _ = status_unwrap(resp).await?;
 
-/// Recover a removed project with provided name
-pub async fn unremove(client: &Client, name: &str) -> Result<Project, client::Error> {
-    let body: Vec<u8> = serde_json::to_vec(&json!([
-        {"op":"replace", "path":"/status", "value":"active"}
-    ]))?;
-    let body = Body::from(body);
-    let req = client.new_request(Method::PATCH, path::project_path(name), Some(body))?;
+        Ok(())
+    }
 
-    let resp = client.request(req).await?;
-    let ok_resp = status_unwrap(resp).await?;
-    let result = ok_resp.json().await?;
+    async fn unremove_project(&self, name: &str) -> Result<Project, Error> {
+        let body: Vec<u8> = serde_json::to_vec(&json!([
+            {"op":"replace", "path":"/status", "value":"active"}
+        ]))?;
+        let body = Body::from(body);
+        let req = self.new_request(Method::PATCH, path::project_path(name), Some(body))?;
 
-    Ok(result)
-}
+        let resp = self.request(req).await?;
+        let ok_resp = status_unwrap(resp).await?;
+        let result = ok_resp.json().await?;
 
-/// Purges a project that was removed before.
-pub async fn purge(client: &Client, name: &str) -> Result<(), client::Error> {
-    let req = client.new_request(Method::DELETE, path::removed_project_path(name), None)?;
+        Ok(result)
+    }
 
-    let resp = client.request(req).await?;
-    let _ = status_unwrap(resp).await?;
+    async fn purge_project(&self, name: &str) -> Result<(), Error> {
+        let req = self.new_request(Method::DELETE, path::removed_project_path(name), None)?;
 
-    Ok(())
+        let resp = self.request(req).await?;
+        let _ = status_unwrap(resp).await?;
+
+        Ok(())
+    }
 }

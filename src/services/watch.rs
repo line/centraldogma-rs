@@ -1,13 +1,13 @@
 //! Watch-related APIs
-use std::time::Duration;
+use std::{pin::Pin, time::Duration};
 
 use crate::{
     client::status_unwrap,
     model::{Query, Revision, WatchFileResult, WatchRepoResult, Watchable},
-    path, Client, Error,
+    path, Client, Error, RepoClient,
 };
 
-use futures::Stream;
+use futures::{Stream, StreamExt};
 use reqwest::{Method, Request, StatusCode};
 
 const DEFAULT_TIMEOUT: Duration = Duration::from_secs(60);
@@ -96,28 +96,39 @@ fn watch_stream<D: Watchable>(client: Client, path: String) -> impl Stream<Item 
     })
 }
 
-/// Returns a stream which output a [`WatchFileResult`] when the result of the
-/// given [`Query`] becomes available or changes
-pub fn watch_file_stream(
-    client: Client,
-    project_name: &str,
-    repo_name: &str,
-    query: &Query,
-) -> Result<impl Stream<Item = WatchFileResult> + Send, Error> {
-    let p = path::content_watch_path(project_name, repo_name, query);
+/// Watch-related APIs
+pub trait WatchService {
+    /// Returns a stream which output a [`WatchFileResult`] when the result of the
+    /// given [`Query`] becomes available or changes
+    fn watch_file_stream(
+        &self,
+        query: &Query,
+    ) -> Result<Pin<Box<dyn Stream<Item = WatchFileResult> + Send>>, Error>;
 
-    Ok(watch_stream(client, p))
+    /// Returns a stream which output a [`WatchRepoResult`] when the repository has a new commit
+    /// that contains the changes for the files matched by the given `path_pattern`.
+    fn watch_repo_stream(
+        &self,
+        path_pattern: &str,
+    ) -> Result<Pin<Box<dyn Stream<Item = WatchRepoResult> + Send>>, Error>;
 }
 
-/// Returns a stream which output a [`WatchRepoResult`] when the repository has a new commit
-/// that contains the changes for the files matched by the given `path_pattern`.
-pub fn watch_repo_stream(
-    client: Client,
-    project_name: &str,
-    repo_name: &str,
-    path_pattern: &str,
-) -> Result<impl Stream<Item = WatchRepoResult> + Send, Error> {
-    let p = path::repo_watch_path(project_name, repo_name, path_pattern);
+impl<'a> WatchService for RepoClient<'a> {
+    fn watch_file_stream(
+        &self,
+        query: &Query,
+    ) -> Result<Pin<Box<dyn Stream<Item = WatchFileResult> + Send>>, Error> {
+        let p = path::content_watch_path(self.project, self.repo, query);
 
-    Ok(watch_stream(client, p))
+        Ok(watch_stream(self.client.clone(), p).boxed())
+    }
+
+    fn watch_repo_stream(
+        &self,
+        path_pattern: &str,
+    ) -> Result<Pin<Box<dyn Stream<Item = WatchRepoResult> + Send>>, Error> {
+        let p = path::repo_watch_path(self.project, self.repo, path_pattern);
+
+        Ok(watch_stream(self.client.clone(), p).boxed())
+    }
 }

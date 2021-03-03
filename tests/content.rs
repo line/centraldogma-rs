@@ -6,7 +6,7 @@ use cd::{
         Change, ChangeContent, CommitDetail, CommitMessage, Entry, EntryContent, Project, Query,
         Repository, Revision,
     },
-    ContentService,
+    ContentService, ProjectService, RepoService,
 };
 use centraldogma as cd;
 
@@ -39,18 +39,22 @@ async fn setup() -> Result<TestContext> {
     let client = cd::Client::new("http://localhost:36462", None)
         .await
         .context("Failed to create client")?;
-    let projects = cd::project::list(&client)
+    let projects = client
+        .list_projects()
         .await
         .context("Failed to list projects")?;
     assert_eq!(0, projects.len());
 
     let prj_name = "TestProject";
-    let project = cd::project::create(&client, prj_name)
+    let project = client
+        .create_project(prj_name)
         .await
         .context("Failed to create new project")?;
 
     let repo_name = "TestRepo";
-    let repo = cd::repository::create(&client, prj_name, repo_name)
+    let repo = client
+        .project(prj_name)
+        .create_repo(repo_name)
         .await
         .context("Failed to create new repository")?;
 
@@ -62,19 +66,25 @@ async fn setup() -> Result<TestContext> {
 }
 
 async fn teardown(ctx: TestContext) -> Result<()> {
-    cd::repository::remove(&ctx.client, &ctx.project.name, &ctx.repo.name)
+    ctx.client
+        .project(&ctx.project.name)
+        .remove_repo(&ctx.repo.name)
         .await
         .context("Failed to remove the repo")?;
 
-    cd::repository::purge(&ctx.client, &ctx.project.name, &ctx.repo.name)
+    ctx.client
+        .project(&ctx.project.name)
+        .purge_repo(&ctx.repo.name)
         .await
         .context("Failed to remove the repo")?;
 
-    cd::project::remove(&ctx.client, &ctx.project.name)
+    ctx.client
+        .remove_project(&ctx.project.name)
         .await
         .context("Failed to remove the project")?;
 
-    cd::project::purge(&ctx.client, &ctx.project.name)
+    ctx.client
+        .purge_project(&ctx.project.name)
         .await
         .context("Failed to purge the project")?;
 
