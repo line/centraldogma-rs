@@ -101,10 +101,6 @@ use centraldogma::{Client, WatchService};
 #[tokio::main]
 fn main() {
     let client = Client::new("http://localhost:36462", None).await.unwrap();
-    let changes = vec![Change {
-        path: "/a.json".to_string(),
-        content: ChangeContent::UpsertJson(serde_json::json!({"a":"b"})),
-    }];
     let stream = client
         .repo("foo", "bar")
         .watch_file_stream(&Query::identity("/a.json").unwrap())
