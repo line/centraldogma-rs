@@ -99,7 +99,7 @@ pub enum EntryContent {
 }
 
 /// A file or a directory in a repository.
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct Entry {
     /// Path of this entry.
@@ -244,8 +244,17 @@ pub struct CommitMessage {
     pub detail: Option<CommitDetail>,
 }
 
+impl CommitMessage {
+    pub fn only_summary(summary: &str) -> Self {
+        CommitMessage {
+            summary: summary.to_owned(),
+            detail: None,
+        }
+    }
+}
+
 /// Result of a [push](trait@crate::ContentService#tymethod.push) operation.
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct PushResult {
     /// Revision of this commit.
@@ -255,7 +264,7 @@ pub struct PushResult {
 }
 
 /// A set of Changes and its metadata.
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct Commit {
     /// Revision of this commit.
@@ -269,7 +278,7 @@ pub struct Commit {
 }
 
 /// Typed content of a [`Change`].
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 #[serde(tag = "type", content = "content")]
 pub enum ChangeContent {
@@ -295,7 +304,7 @@ pub enum ChangeContent {
 }
 
 /// A modification of an individual [`Entry`]
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct Change {
     /// Path of the file change.
@@ -307,7 +316,7 @@ pub struct Change {
 
 /// A change result from a
 /// [watch_file](trait@crate::WatchService#tymethod.watch_file_stream) operation.
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct WatchFileResult {
     /// Revision of the change.
@@ -318,7 +327,7 @@ pub struct WatchFileResult {
 
 /// A change result from a
 /// [watch_repo](trait@crate::WatchService#tymethod.watch_repo_stream) operation.
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct WatchRepoResult {
     /// Revision of the change.

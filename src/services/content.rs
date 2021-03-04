@@ -233,11 +233,11 @@ impl<'a> ContentService for RepoClient<'a> {
 mod test {
     use super::*;
     use crate::{
-        model::{Author, EntryContent, EntryType, Revision},
+        model::{Author, ChangeContent, EntryContent, EntryType, Revision},
         Client,
     };
     use httpmock::{
-        Method::{DELETE, GET, PATCH, POST},
+        Method::{GET, POST},
         MockServer,
     };
 
@@ -332,6 +332,35 @@ mod test {
         mock.assert();
         assert_eq!(entry.path, "/b.txt");
         assert!(matches!(entry.content, EntryContent::Text(t) if t == "hello world~!"));
+    }
+
+    #[tokio::test]
+    async fn test_get_file_text_with_escape() {
+        let server = MockServer::start();
+        let content = "foo\nb\"rb\\z";
+        let mock = server.mock(|when, then| {
+            when.path("/api/v1/projects/foo/repos/bar/contents/b.txt")
+                .method(GET)
+                .header("Authorization", "Bearer anonymous");
+            then.status(200).json_body(serde_json::json!({
+                "path":"/b.txt",
+                "type":"TEXT",
+                "revision":2,
+                "url": "/api/v1/projects/foo/repos/bar/contents/b.txt",
+                "content":content
+            }));
+        });
+
+        let client = Client::new(&server.base_url(), None).await.unwrap();
+        let entry = client
+            .repo("foo", "bar")
+            .get_file(Revision::HEAD, &Query::identity("/b.txt").unwrap())
+            .await
+            .unwrap();
+
+        mock.assert();
+        assert_eq!(entry.path, "/b.txt");
+        assert!(matches!(entry.content, EntryContent::Text(t) if t == content));
     }
 
     #[tokio::test]
@@ -485,7 +514,8 @@ mod test {
                 .query_param("maxCommits", "2")
                 .header("Authorization", "Bearer anonymous");
 
-            then.status(200).body(r#"[{
+            then.status(200).body(
+                r#"[{
                 "revision":1,
                 "author":{"name":"minux", "email":"minux@m.x"},
                 "commitMessage":{"summary":"Add a.json"}
@@ -504,15 +534,30 @@ mod test {
             .await
             .unwrap();
 
-        let expected = [(
-            1,
-            Author { name: "minux".to_string(), email: "minux@m.x".to_string() },
-            CommitMessage { summary: "Add a.json".to_string(), detail: None }
-        ), (
-            2,
-            Author { name: "minux".to_string(), email: "minux@m.x".to_string() },
-            CommitMessage { summary: "Edit a.json".to_string(), detail: None }
-        )];
+        let expected = [
+            (
+                1,
+                Author {
+                    name: "minux".to_string(),
+                    email: "minux@m.x".to_string(),
+                },
+                CommitMessage {
+                    summary: "Add a.json".to_string(),
+                    detail: None,
+                },
+            ),
+            (
+                2,
+                Author {
+                    name: "minux".to_string(),
+                    email: "minux@m.x".to_string(),
+                },
+                CommitMessage {
+                    summary: "Edit a.json".to_string(),
+                    detail: None,
+                },
+            ),
+        ];
 
         mock.assert();
         for (p, e) in commits.iter().zip(expected.iter()) {
@@ -520,5 +565,229 @@ mod test {
             assert_eq!(p.author, e.1);
             assert_eq!(p.commit_message, e.2);
         }
+    }
+
+    #[tokio::test]
+    async fn test_get_diff() {
+        let server = MockServer::start();
+        let mock = server.mock(|when, then| {
+            when.path("/api/v1/projects/foo/repos/bar/compare")
+                .method(GET)
+                .query_param("from", "3")
+                .query_param("to", "4")
+                .query_param("path", "/a.json")
+                .query_param("jsonpath", "$.a")
+                .header("Authorization", "Bearer anonymous");
+
+            then.status(200).body(
+                r#"{
+                "path":"/a.json",
+                "type":"APPLY_JSON_PATCH",
+                "content":[{
+                    "op":"safeReplace",
+                    "path":"",
+                    "oldValue":"bar",
+                    "value":"baz"
+                }]
+            }"#,
+            );
+        });
+
+        let client = Client::new(&server.base_url(), None).await.unwrap();
+        let query = Query::of_json_path("/a.json", vec!["$.a".to_string()]).unwrap();
+        let change = client
+            .repo("foo", "bar")
+            .get_diff(Revision::from(3), Revision::from(4), &query)
+            .await
+            .unwrap();
+
+        let expected = Change {
+            path: "/a.json".to_string(),
+            content: ChangeContent::ApplyJsonPatch(serde_json::json!([{
+                "op": "safeReplace",
+                "path": "",
+                "oldValue": "bar",
+                "value": "baz"
+            }])),
+        };
+
+        mock.assert();
+        assert_eq!(change, expected);
+    }
+
+    #[tokio::test]
+    async fn test_get_diffs() {
+        let server = MockServer::start();
+        let mock = server.mock(|when, then| {
+            when.path("/api/v1/projects/foo/repos/bar/compare")
+                .method(GET)
+                .query_param("from", "1")
+                .query_param("to", "4")
+                .query_param("pathPattern", "/**")
+                .header("Authorization", "Bearer anonymous");
+
+            then.status(200).body(
+                r#"[{
+                "path":"/a.json",
+                "type":"APPLY_JSON_PATCH",
+                "content":[{
+                    "op":"safeReplace",
+                    "path":"",
+                    "oldValue":"bar",
+                    "value":"baz"
+                }]
+            }, {
+                "path":"/b.txt",
+                "type":"APPLY_TEXT_PATCH",
+                "content":"--- /b.txt\n+++ /b.txt\n@@ -1,1 +1,1 @@\n-foo\n+bar"
+            }]"#,
+            );
+        });
+
+        let client = Client::new(&server.base_url(), None).await.unwrap();
+        let changes = client
+            .repo("foo", "bar")
+            .get_diffs(Revision::from(1), Revision::from(4), "/**")
+            .await
+            .unwrap();
+
+        let expected = [
+            Change {
+                path: "/a.json".to_string(),
+                content: ChangeContent::ApplyJsonPatch(serde_json::json!([{
+                    "op": "safeReplace",
+                    "path": "",
+                    "oldValue": "bar",
+                    "value": "baz"
+                }])),
+            },
+            Change {
+                path: "/b.txt".to_string(),
+                content: ChangeContent::ApplyTextPatch(
+                    "--- /b.txt\n+++ /b.txt\n@@ -1,1 +1,1 @@\n-foo\n+bar".to_string(),
+                ),
+            },
+        ];
+
+        mock.assert();
+        for (c, e) in changes.iter().zip(expected.iter()) {
+            assert_eq!(c, e);
+        }
+    }
+
+    #[tokio::test]
+    async fn test_push() {
+        let server = MockServer::start();
+        let mock = server.mock(|when, then| {
+            let changes = vec![Change {
+                path: "/a.json".to_string(),
+                content: ChangeContent::UpsertJson(serde_json::json!({"a":"b"})),
+            }];
+            let body = Push {
+                commit_message: CommitMessage::only_summary("Add a.json"),
+                changes,
+            };
+            let body_value = serde_json::to_value(&body).unwrap();
+
+            when.path("/api/v1/projects/foo/repos/bar/contents")
+                .method(POST)
+                .query_param("revision", "-1")
+                .json_body(body_value)
+                .header("Authorization", "Bearer anonymous");
+
+            then.status(200).body(
+                r#"{
+                "revision":2,
+                "pushedAt":"2017-05-22T00:00:00Z"
+            }"#,
+            );
+        });
+
+        let client = Client::new(&server.base_url(), None).await.unwrap();
+        let changes = vec![Change {
+            path: "/a.json".to_string(),
+            content: ChangeContent::UpsertJson(serde_json::json!({"a":"b"})),
+        }];
+        let result = client
+            .repo("foo", "bar")
+            .push(
+                Revision::HEAD,
+                CommitMessage::only_summary("Add a.json"),
+                changes,
+            )
+            .await
+            .unwrap();
+
+        let expected = PushResult {
+            revision: Revision::from(2),
+            pushed_at: Some("2017-05-22T00:00:00Z".to_string()),
+        };
+
+        mock.assert();
+        assert_eq!(result, expected);
+    }
+
+    #[tokio::test]
+    async fn test_push_two_files() {
+        let server = MockServer::start();
+        let mock = server.mock(|when, then| {
+            let changes = vec![
+                Change {
+                    path: "/a.json".to_string(),
+                    content: ChangeContent::UpsertJson(serde_json::json!({"a":"b"})),
+                },
+                Change {
+                    path: "/b.txt".to_string(),
+                    content: ChangeContent::UpsertText("myContent".to_string()),
+                },
+            ];
+            let body = Push {
+                commit_message: CommitMessage::only_summary("Add a.json and b.txt"),
+                changes,
+            };
+            let body_value = serde_json::to_value(&body).unwrap();
+
+            when.path("/api/v1/projects/foo/repos/bar/contents")
+                .method(POST)
+                .query_param("revision", "-1")
+                .json_body(body_value)
+                .header("Authorization", "Bearer anonymous");
+
+            then.status(200).body(
+                r#"{
+                "revision":3,
+                "pushedAt":"2017-05-22T00:00:00Z"
+            }"#,
+            );
+        });
+
+        let client = Client::new(&server.base_url(), None).await.unwrap();
+        let changes = vec![
+            Change {
+                path: "/a.json".to_string(),
+                content: ChangeContent::UpsertJson(serde_json::json!({"a":"b"})),
+            },
+            Change {
+                path: "/b.txt".to_string(),
+                content: ChangeContent::UpsertText("myContent".to_string()),
+            },
+        ];
+        let result = client
+            .repo("foo", "bar")
+            .push(
+                Revision::HEAD,
+                CommitMessage::only_summary("Add a.json and b.txt"),
+                changes,
+            )
+            .await
+            .unwrap();
+
+        let expected = PushResult {
+            revision: Revision::from(3),
+            pushed_at: Some("2017-05-22T00:00:00Z".to_string()),
+        };
+
+        mock.assert();
+        assert_eq!(result, expected);
     }
 }
