@@ -33,9 +33,9 @@ use centraldogma::Client;
 #[tokio::main]
 fn main() {
     // with token
-    let client = Client::from_token("http://localhost:36462", Some("token")).await.unwrap();
+    let client = Client::new("http://localhost:36462", Some("token")).await.unwrap();
     // without token
-    let client = Client::from_token("http://localhost:36462", None).await.unwrap();
+    let client = Client::new("http://localhost:36462", None).await.unwrap();
     // your code ...
 }
 ```
@@ -49,13 +49,17 @@ Typed API calls are provided behind traits:
 * [`ContentService`](https://TODO)
 * [`WatchService`](https://TODO)
 
+#### Examples
+
+##### Get File
+
 ```rust
 use centraldogma::{Client, ContentService};
 
 #[tokio::main]
 fn main() {
     // without token
-    let client = Client::from_token("http://localhost:36462", None).await.unwrap();
+    let client = Client::new("http://localhost:36462", None).await.unwrap();
 
     let file = client
         .repo("project", "repository")
@@ -64,4 +68,73 @@ fn main() {
         .unwrap();
     // your code ...
 }
+```
+
+##### Push
+
+```rust
+use centraldogma::{Client, ContentService};
+
+#[tokio::main]
+fn main() {
+    let client = Client::new("http://localhost:36462", None).await.unwrap();
+    let changes = vec![Change {
+        path: "/a.json".to_string(),
+        content: ChangeContent::UpsertJson(serde_json::json!({"a":"b"})),
+    }];
+    let result = client
+        .repo("foo", "bar")
+        .push(
+            Revision::HEAD,
+            CommitMessage::only_summary("Add a.json"),
+            changes,
+        )
+        .await
+        .unwrap();
+```
+
+##### Watch file change
+
+```rust
+use centraldogma::{Client, WatchService};
+
+#[tokio::main]
+fn main() {
+    let client = Client::new("http://localhost:36462", None).await.unwrap();
+    let changes = vec![Change {
+        path: "/a.json".to_string(),
+        content: ChangeContent::UpsertJson(serde_json::json!({"a":"b"})),
+    }];
+    let stream = client
+        .repo("foo", "bar")
+        .watch_file_stream(&Query::identity("/a.json").unwrap())
+        .unwrap();
+
+    tokio::spawn(async move {
+        while let Some(result) = stream.next().await {
+            // your code ...
+        }
+    })
+```
+
+## Contributing
+
+### Run test suite
+
+Run local centraldogma server with docker-compose
+
+```bash
+docker-compose up -d
+```
+
+Run all tests
+
+```bash
+cargo test
+```
+
+Run unit test only (centraldogma server not needed)
+
+```bash
+cargo test --lib
 ```

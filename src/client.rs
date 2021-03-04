@@ -37,7 +37,8 @@ pub enum Error {
     ErrorResponse(u16, String),
 }
 
-/// Root client for top level APIs
+/// Root client for top level APIs.  
+/// Implements [`crate::ProjectService`]
 #[derive(Clone)]
 pub struct Client {
     base_url: Url,
@@ -177,9 +178,9 @@ pub(crate) async fn status_unwrap(resp: Response) -> Result<Response, Error> {
     }
 }
 
-/// A temporary client within context of a project.
-/// Created by [`Client::project()`]
-/// Implemts [`RepoService`]
+/// A temporary client within context of a project.  
+/// Created by [`Client::project()`]  
+/// Implements [`crate::RepoService`]
 pub struct ProjectClient<'a> {
     pub(crate) client: &'a Client,
     pub(crate) project: &'a str,
@@ -187,7 +188,8 @@ pub struct ProjectClient<'a> {
 
 /// A temporary client within context of a Repository.  
 /// Created by [`Client::repo()`]  
-/// Implements [`ContentService`]
+/// Implements [`crate::ContentService`] and
+/// [`crate::WatchService`]
 pub struct RepoClient<'a> {
     pub(crate) client: &'a Client,
     pub(crate) project: &'a str,
