@@ -1,16 +1,11 @@
-use std::{pin::Pin, time::Duration};
+use std::time::Duration;
 
-use async_trait::async_trait;
-use futures::{Stream, StreamExt};
 use reqwest::{header::HeaderValue, Body, Method, Request, Response};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use url::Url;
 
-use crate::model::{
-    Change, Commit, CommitMessage, Entry, ListEntry, Project, PushResult, Query, Repository,
-    Revision, WatchFileResult, WatchRepoResult,
-};
+use crate::model::Revision;
 
 const WATCH_BUFFER_TIMEOUT: Duration = Duration::from_secs(5);
 
@@ -42,7 +37,8 @@ pub enum Error {
     ErrorResponse(u16, String),
 }
 
-/// Root client for top level APIs
+/// Root client for top level APIs.  
+/// Implements [`crate::ProjectService`]
 #[derive(Clone)]
 pub struct Client {
     base_url: Url,
@@ -182,349 +178,20 @@ pub(crate) async fn status_unwrap(resp: Response) -> Result<Response, Error> {
     }
 }
 
-/// Project-related APIs
-#[async_trait]
-pub trait ProjectService {
-    /// Retrieves the list of the projects.
-    async fn list_projects(&self) -> Result<Vec<Project>, Error>;
-
-    /// Retrieves the list of the removed projects,
-    /// which can be [unremoved](#tymethod.unremove_project)
-    /// or [purged](#tymethod.purge_project).
-    async fn list_removed_projects(&self) -> Result<Vec<String>, Error>;
-
-    /// Creates a project.
-    async fn create_project(&self, project_name: &str) -> Result<Project, Error>;
-
-    /// Removes a project. A removed project can be [unremoved](#tymethod.unremove_project).
-    async fn remove_project(&self, project_name: &str) -> Result<(), Error>;
-
-    /// Unremoves a project.
-    async fn unremove_project(&self, project_name: &str) -> Result<Project, Error>;
-
-    /// Purges a project that was removed before.
-    async fn purge_project(&self, project_name: &str) -> Result<(), Error>;
-}
-
-#[async_trait]
-impl ProjectService for Client {
-    async fn list_projects(&self) -> Result<Vec<Project>, Error> {
-        crate::services::project::list(self).await
-    }
-
-    async fn list_removed_projects(&self) -> Result<Vec<String>, Error> {
-        crate::services::project::list_removed(self).await
-    }
-
-    async fn create_project(&self, project_name: &str) -> Result<Project, Error> {
-        crate::services::project::create(self, project_name).await
-    }
-
-    async fn remove_project(&self, project_name: &str) -> Result<(), Error> {
-        crate::services::project::remove(self, project_name).await
-    }
-
-    async fn unremove_project(&self, project_name: &str) -> Result<Project, Error> {
-        crate::services::project::unremove(self, project_name).await
-    }
-
-    async fn purge_project(&self, project_name: &str) -> Result<(), Error> {
-        crate::services::project::purge(self, project_name).await
-    }
-}
-
-/// Repository-related APIs
-#[async_trait]
-pub trait RepoService {
-    /// Retrieves the list of the repositories.
-    async fn list_repos(&self) -> Result<Vec<Repository>, Error>;
-
-    /// Retrieves the list of the removed repositories, which can be
-    /// [unremoved](#tymethod.unremove_repo).
-    async fn list_removed_repos(&self) -> Result<Vec<Repository>, Error>;
-
-    /// Creates a repository.
-    async fn create_repo(&self, repo_name: &str) -> Result<Repository, Error>;
-
-    /// Removes a repository, removed repository can be
-    /// [unremoved](#tymethod.unremove_repo).
-    async fn remove_repo(&self, repo_name: &str) -> Result<(), Error>;
-
-    /// Unremoves a repository.
-    async fn unremove_repo(&self, repo_name: &str) -> Result<Repository, Error>;
-
-    /// Purges a repository that was removed before.
-    async fn purge_repo(&self, repo_name: &str) -> Result<(), Error>;
-}
-
-/// A temporary client within context of a project.
-/// Created by [`Client::project()`]
-/// Implemts [`RepoService`]
+/// A temporary client within context of a project.  
+/// Created by [`Client::project()`]  
+/// Implements [`crate::RepoService`]
 pub struct ProjectClient<'a> {
-    client: &'a Client,
-    project: &'a str,
-}
-
-#[async_trait]
-impl<'a> RepoService for ProjectClient<'a> {
-    async fn list_repos(&self) -> Result<Vec<Repository>, Error> {
-        crate::services::repository::list_by_project_name(self.client, self.project).await
-    }
-
-    async fn list_removed_repos(&self) -> Result<Vec<Repository>, Error> {
-        crate::services::repository::list_removed_by_project_name(self.client, self.project).await
-    }
-
-    async fn create_repo(&self, repo_name: &str) -> Result<Repository, Error> {
-        crate::services::repository::create(self.client, self.project, repo_name).await
-    }
-
-    async fn remove_repo(&self, repo_name: &str) -> Result<(), Error> {
-        crate::services::repository::remove(self.client, self.project, repo_name).await
-    }
-
-    async fn unremove_repo(&self, repo_name: &str) -> Result<Repository, Error> {
-        crate::services::repository::unremove(self.client, self.project, repo_name).await
-    }
-
-    async fn purge_repo(&self, repo_name: &str) -> Result<(), Error> {
-        crate::services::repository::purge(self.client, self.project, repo_name).await
-    }
+    pub(crate) client: &'a Client,
+    pub(crate) project: &'a str,
 }
 
 /// A temporary client within context of a Repository.  
 /// Created by [`Client::repo()`]  
-/// Implements [`ContentService`]
+/// Implements [`crate::ContentService`] and
+/// [`crate::WatchService`]
 pub struct RepoClient<'a> {
-    client: &'a Client,
-    project: &'a str,
-    repo: &'a str,
-}
-
-/// Content-related APIs
-#[async_trait]
-pub trait ContentService {
-    /// Queries a file at the specified [`Revision`] and path with the specified [`Query`].
-    async fn get_file(&self, revision: Revision, query: &Query) -> Result<Entry, Error>;
-
-    /// Retrieves the files at the specified [`Revision`] matched by the path pattern.
-    ///
-    /// A path pattern is a variant of glob:
-    ///   * `"/**"` - find all files recursively
-    ///   * `"*.json"` - find all JSON files recursively
-    ///   * `"/foo/*.json"` - find all JSON files under the directory /foo
-    ///   * `"/*/foo.txt"` - find all files named foo.txt at the second depth level
-    ///   * `"*.json,/bar/*.txt"` - use comma to specify more than one pattern.
-    ///   A file will be matched if any pattern matches.
-    async fn get_files(&self, revision: Revision, path_pattern: &str) -> Result<Vec<Entry>, Error>;
-
-    /// Retrieves the list of the files at the specified [`Revision`] matched by the path pattern.
-    ///
-    /// A path pattern is a variant of glob:
-    ///   * `"/**"` - find all files recursively
-    ///   * `"*.json"` - find all JSON files recursively
-    ///   * `"/foo/*.json"` - find all JSON files under the directory /foo
-    ///   * `"/*/foo.txt"` - find all files named foo.txt at the second depth level
-    ///   * `"*.json,/bar/*.txt"` - use comma to specify more than one pattern.
-    ///   A file will be matched if any pattern matches.
-    async fn list_files(
-        &self,
-        revision: Revision,
-        path_pattern: &str,
-    ) -> Result<Vec<ListEntry>, Error>;
-
-    /// Returns the diff of a file between two [`Revision`]s.
-    async fn get_diff(
-        &self,
-        from_rev: Revision,
-        to_rev: Revision,
-        query: &Query,
-    ) -> Result<Change, Error>;
-
-    /// Retrieves the diffs of the files matched by the given
-    /// path pattern between two [`Revision`]s.
-    ///
-    /// A path pattern is a variant of glob:
-    ///   * `"/**"` - find all files recursively
-    ///   * `"*.json"` - find all JSON files recursively
-    ///   * `"/foo/*.json"` - find all JSON files under the directory /foo
-    ///   * `"/*/foo.txt"` - find all files named foo.txt at the second depth level
-    ///   * `"*.json,/bar/*.txt"` - use comma to specify more than one pattern.
-    ///   A file will be matched if any pattern matches.
-    async fn get_diffs(
-        &self,
-        from_rev: Revision,
-        to_rev: Revision,
-        path_pattern: &str,
-    ) -> Result<Vec<Change>, Error>;
-
-    /// Retrieves the history of the repository of the files matched by the given
-    /// path pattern between two [`Revision`]s.
-    /// Note that this method does not retrieve the diffs but only metadata about the changes.
-    /// Use [get_diff](#tymethod.get_diff) or
-    /// [get_diffs](#tymethod.get_diffs) to retrieve the diffs
-    async fn get_history(
-        &self,
-        from_rev: Revision,
-        to_rev: Revision,
-        path: &str,
-        max_commits: u32,
-    ) -> Result<Vec<Commit>, Error>;
-
-    /// Pushes the specified [`Change`]s to the repository.
-    async fn push(
-        &self,
-        base_revision: Revision,
-        cm: CommitMessage,
-        changes: Vec<Change>,
-    ) -> Result<PushResult, Error>;
-}
-
-#[async_trait]
-impl<'a> ContentService for RepoClient<'a> {
-    async fn get_file(&self, revision: Revision, query: &Query) -> Result<Entry, Error> {
-        crate::services::content::get_file(self.client, self.project, self.repo, revision, query)
-            .await
-    }
-
-    async fn get_files(&self, revision: Revision, path_pattern: &str) -> Result<Vec<Entry>, Error> {
-        crate::services::content::get_files(
-            self.client,
-            self.project,
-            self.repo,
-            revision,
-            path_pattern,
-        )
-        .await
-    }
-
-    async fn list_files(
-        &self,
-        revision: Revision,
-        path_pattern: &str,
-    ) -> Result<Vec<ListEntry>, Error> {
-        crate::services::content::list_files(
-            self.client,
-            self.project,
-            self.repo,
-            revision,
-            path_pattern,
-        )
-        .await
-    }
-
-    async fn get_diff(
-        &self,
-        from_rev: Revision,
-        to_rev: Revision,
-        query: &Query,
-    ) -> Result<Change, Error> {
-        crate::services::content::get_diff(
-            self.client,
-            self.project,
-            self.repo,
-            from_rev,
-            to_rev,
-            query,
-        )
-        .await
-    }
-
-    async fn get_diffs(
-        &self,
-        from_rev: Revision,
-        to_rev: Revision,
-        path_pattern: &str,
-    ) -> Result<Vec<Change>, Error> {
-        crate::services::content::get_diffs(
-            self.client,
-            self.project,
-            self.repo,
-            from_rev,
-            to_rev,
-            path_pattern,
-        )
-        .await
-    }
-
-    async fn get_history(
-        &self,
-        from_rev: Revision,
-        to_rev: Revision,
-        path: &str,
-        max_commits: u32,
-    ) -> Result<Vec<Commit>, Error> {
-        crate::services::content::get_history(
-            self.client,
-            self.project,
-            self.repo,
-            from_rev,
-            to_rev,
-            path,
-            max_commits,
-        )
-        .await
-    }
-
-    async fn push(
-        &self,
-        base_revision: Revision,
-        cm: CommitMessage,
-        changes: Vec<Change>,
-    ) -> Result<PushResult, Error> {
-        crate::services::content::push(
-            self.client,
-            self.project,
-            self.repo,
-            base_revision,
-            cm,
-            changes,
-        )
-        .await
-    }
-}
-
-/// Watch-related APIs
-pub trait WatchService {
-    /// Returns a stream which output a [`WatchFileResult`] when the result of the
-    /// given [`Query`] becomes available or changes
-    fn watch_file_stream(
-        &self,
-        query: &Query,
-    ) -> Result<Pin<Box<dyn Stream<Item = WatchFileResult> + Send>>, Error>;
-
-    /// Returns a stream which output a [`WatchRepoResult`] when the repository has a new commit
-    /// that contains the changes for the files matched by the given `path_pattern`.
-    fn watch_repo_stream(
-        &self,
-        path_pattern: &str,
-    ) -> Result<Pin<Box<dyn Stream<Item = WatchRepoResult> + Send>>, Error>;
-}
-
-impl<'a> WatchService for RepoClient<'a> {
-    fn watch_file_stream(
-        &self,
-        query: &Query,
-    ) -> Result<Pin<Box<dyn Stream<Item = WatchFileResult> + Send>>, Error> {
-        Ok(crate::services::watch::watch_file_stream(
-            self.client.clone(),
-            self.project,
-            self.repo,
-            query,
-        )?
-        .boxed())
-    }
-
-    fn watch_repo_stream(
-        &self,
-        path_pattern: &str,
-    ) -> Result<Pin<Box<dyn Stream<Item = WatchRepoResult> + Send>>, Error> {
-        Ok(crate::services::watch::watch_repo_stream(
-            self.client.clone(),
-            self.project,
-            self.repo,
-            path_pattern,
-        )?
-        .boxed())
-    }
+    pub(crate) client: &'a Client,
+    pub(crate) project: &'a str,
+    pub(crate) repo: &'a str,
 }

@@ -23,4 +23,4 @@ futures = "0.3"
 log = "0.4"
 
 [dev-dependencies]
-futures = "0.3"
+httpmock = "0.5.5"

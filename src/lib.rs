@@ -3,8 +3,7 @@ pub mod model;
 pub(crate) mod path;
 mod services;
 
-pub use client::{
-    Client, ContentService, Error, ProjectClient, ProjectService, RepoClient, RepoService,
-    WatchService,
+pub use client::{Client, Error, ProjectClient, RepoClient};
+pub use services::{
+    content::ContentService, project::ProjectService, repository::RepoService, watch::WatchService,
 };
-pub use services::{content, project, repository, watch};

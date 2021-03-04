@@ -1,6 +1,6 @@
 #[macro_use]
 mod utils;
-use cd::RepoService;
+use cd::{ProjectService, RepoService};
 use centraldogma as cd;
 
 use anyhow::{ensure, Context, Result};
@@ -29,13 +29,15 @@ async fn setup() -> Result<TestContext> {
     let client = cd::Client::new("http://localhost:36462", None)
         .await
         .context("Failed to create client")?;
-    let projects = cd::project::list(&client)
+    let projects = client
+        .list_projects()
         .await
         .context("Failed to list projects")?;
     assert_eq!(0, projects.len());
 
     let prj_name = "TestProject";
-    let project = cd::project::create(&client, prj_name)
+    let project = client
+        .create_project(prj_name)
         .await
         .context("Failed to create new project")?;
 
@@ -43,11 +45,13 @@ async fn setup() -> Result<TestContext> {
 }
 
 async fn teardown(ctx: TestContext) -> Result<()> {
-    cd::project::remove(&ctx.client, &ctx.project.name)
+    ctx.client
+        .remove_project(&ctx.project.name)
         .await
         .context("Failed to remove the project")?;
 
-    cd::project::purge(&ctx.client, &ctx.project.name)
+    ctx.client
+        .purge_project(&ctx.project.name)
         .await
         .context("Failed to purge the project")?;
 
@@ -85,7 +89,7 @@ fn t1<'a>(ctx: &'a mut TestContext) -> Pin<Box<dyn Future<Output = Result<()>> +
 
         let mut found = false;
         for repo in removed_repos.iter() {
-            if repo.name == repo_name {
+            if repo == repo_name {
                 found = true;
             }
         }
@@ -127,7 +131,7 @@ fn t1<'a>(ctx: &'a mut TestContext) -> Pin<Box<dyn Future<Output = Result<()>> +
 
         let mut found = false;
         for repo in removed_repos.iter() {
-            if repo.name == repo_name {
+            if repo == repo_name {
                 found = true;
             }
         }
