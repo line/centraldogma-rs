@@ -1,8 +1,8 @@
 //! Project-related APIs
 use crate::{
-    client::{status_unwrap, Client, Error},
+    client::{Client, Error},
     model::Project,
-    path,
+    services::{path, status_unwrap},
 };
 
 use async_trait::async_trait;
@@ -117,19 +117,16 @@ impl ProjectService for Client {
 #[cfg(test)]
 mod test {
     use super::*;
-    use httpmock::{
-        Method::{DELETE, GET, PATCH, POST},
-        MockServer,
+    use wiremock::{
+        Mock, MockServer, ResponseTemplate,
+        matchers::{method, path, query_param, header, body_json},
     };
 
     #[tokio::test]
     async fn test_list_projects() {
-        let server = MockServer::start();
-        let mock = server.mock(|when, then| {
-            when.path("/api/v1/projects")
-                .method(GET)
-                .header("Authorization", "Bearer anonymous");
-            let resp = r#"[{
+        let server = MockServer::start().await;
+        let resp = ResponseTemplate::new(200)
+            .set_body_raw(r#"[{
                 "name":"foo",
                 "creator":{"name":"minux", "email":"minux@m.x"},
                 "url":"/api/v1/projects/foo"
@@ -137,14 +134,19 @@ mod test {
                 "name":"bar",
                 "creator":{"name":"minux", "email":"minux@m.x"},
                 "url":"/api/v1/projects/bar"
-            }]"#;
-            then.status(200).body(resp.as_bytes());
-        });
+            }]"#, "application/json");
+        Mock::given(method("GET"))
+            .and(path("/api/v1/projects"))
+            .and(header("Authorization", "Bearer anonymous"))
+            .respond_with(resp)
+            .expect(1)
+            .mount(&server)
+            .await;
 
-        let client = Client::new(&server.base_url(), None).await.unwrap();
+        let client = Client::new(&server.uri(), None).await.unwrap();
         let projects = client.list_projects().await.unwrap();
 
-        mock.assert();
+        drop(server);
         let expected = [
             ("foo", "minux", "minux@m.x", "/api/v1/projects/foo"),
             ("bar", "minux", "minux@m.x", "/api/v1/projects/bar"),
@@ -160,20 +162,25 @@ mod test {
 
     #[tokio::test]
     async fn test_list_removed_projects() {
-        let server = MockServer::start();
-        let mock = server.mock(|when, then| {
-            when.path("/api/v1/projects")
-                .method(GET)
-                .query_param("status", "removed")
-                .header("Authorization", "Bearer anonymous");
-            let resp = r#"[{"name":"foo"}, {"name":"bar"}]"#;
-            then.status(200).body(resp.as_bytes());
-        });
+        let server = MockServer::start().await;
+        let resp = ResponseTemplate::new(200)
+            .set_body_raw(r#"[
+                {"name":"foo"},
+                {"name":"bar"}
+            ]"#, "application/json");
+        Mock::given(method("GET"))
+            .and(path("/api/v1/projects"))
+            .and(query_param("status", "removed"))
+            .and(header("Authorization", "Bearer anonymous"))
+            .respond_with(resp)
+            .expect(1)
+            .mount(&server)
+            .await;
 
-        let client = Client::new(&server.base_url(), None).await.unwrap();
+        let client = Client::new(&server.uri(), None).await.unwrap();
         let projects = client.list_removed_projects().await.unwrap();
 
-        mock.assert();
+        drop(server);
         assert_eq!(projects.len(), 2);
 
         assert_eq!(projects[0], "foo");
@@ -182,25 +189,25 @@ mod test {
 
     #[tokio::test]
     async fn test_create_project() {
-        let server = MockServer::start();
-        let mock = server.mock(|when, then| {
-            let project_json = serde_json::json!({"name": "foo"}).to_string();
-            when.path("/api/v1/projects")
-                .method(POST)
-                .body(project_json)
-                .header("Authorization", "Bearer anonymous");
-
-            let resp = r#"{
+        let server = MockServer::start().await;
+        let project_json = serde_json::json!({"name": "foo"});
+        let resp = ResponseTemplate::new(201)
+            .set_body_raw(r#"{
                 "name":"foo",
                 "creator":{"name":"minux", "email":"minux@m.x"}
-            }"#;
-            then.status(201).body(resp.as_bytes());
-        });
-
-        let client = Client::new(&server.base_url(), None).await.unwrap();
+            }"#, "application/json");
+        Mock::given(method("POST"))
+            .and(path("/api/v1/projects"))
+            .and(header("Authorization", "Bearer anonymous"))
+            .and(body_json(project_json))
+            .respond_with(resp)
+            .expect(1)
+            .mount(&server)
+            .await;
+        let client = Client::new(&server.uri(), None).await.unwrap();
         let project = client.create_project("foo").await.unwrap();
 
-        mock.assert();
+        drop(server);
 
         assert_eq!(project.name, "foo");
         assert_eq!(project.creator.name, "minux");
@@ -209,61 +216,60 @@ mod test {
 
     #[tokio::test]
     async fn test_remove_project() {
-        let server = MockServer::start();
-        let mock = server.mock(|when, then| {
-            when.path("/api/v1/projects/foo")
-                .method(DELETE)
-                .header("Authorization", "Bearer anonymous");
-            then.status(204);
-        });
+        let server = MockServer::start().await;
+        let resp = ResponseTemplate::new(204);
+        Mock::given(method("DELETE"))
+            .and(path("/api/v1/projects/foo"))
+            .and(header("Authorization", "Bearer anonymous"))
+            .respond_with(resp)
+            .expect(1)
+            .mount(&server)
+            .await;
 
-        let client = Client::new(&server.base_url(), None).await.unwrap();
+        let client = Client::new(&server.uri(), None).await.unwrap();
         client.remove_project("foo").await.unwrap();
-
-        mock.assert();
     }
 
     #[tokio::test]
     async fn test_purge_project() {
-        let server = MockServer::start();
-        let mock = server.mock(|when, then| {
-            when.path("/api/v1/projects/foo/removed")
-                .method(DELETE)
-                .header("Authorization", "Bearer anonymous");
-            then.status(204);
-        });
+        let server = MockServer::start().await;
+        let resp = ResponseTemplate::new(204);
+        Mock::given(method("DELETE"))
+            .and(path("/api/v1/projects/foo/removed"))
+            .and(header("Authorization", "Bearer anonymous"))
+            .respond_with(resp)
+            .expect(1)
+            .mount(&server)
+            .await;
 
-        let client = Client::new(&server.base_url(), None).await.unwrap();
+        let client = Client::new(&server.uri(), None).await.unwrap();
         client.purge_project("foo").await.unwrap();
-
-        mock.assert();
     }
 
     #[tokio::test]
     async fn test_unremove_project() {
-        let server = MockServer::start();
-        let mock = server.mock(|when, then| {
-            let unremove_json = serde_json::json!(
-                [{"op": "replace", "path": "/status", "value": "active"}]
-            )
-            .to_string();
-            when.path("/api/v1/projects/foo")
-                .method(PATCH)
-                .body(unremove_json)
-                .header("Content-Type", "application/json-patch+json")
-                .header("Authorization", "Bearer anonymous");
-            let resp = r#"{
+        let server = MockServer::start().await;
+        let unremove_json = serde_json::json!([{"op": "replace", "path": "/status", "value": "active"}]);
+        let resp = ResponseTemplate::new(201)
+            .set_body_raw(r#"{
                 "name":"foo",
                 "creator":{"name":"minux", "email":"minux@m.x"},
                 "url":"/api/v1/projects/foo"
-            }"#;
-            then.status(200).body(resp.as_bytes());
-        });
+            }"#, "application/json");
+        Mock::given(method("PATCH"))
+            .and(path("/api/v1/projects/foo"))
+            .and(header("Content-Type", "application/json-patch+json"))
+            .and(header("Authorization", "Bearer anonymous"))
+            .and(body_json(unremove_json))
+            .respond_with(resp)
+            .expect(1)
+            .mount(&server)
+            .await;
 
-        let client = Client::new(&server.base_url(), None).await.unwrap();
+        let client = Client::new(&server.uri(), None).await.unwrap();
         let project = client.unremove_project("foo").await.unwrap();
 
-        mock.assert();
+        drop(server);
 
         assert_eq!(project.name, "foo");
         assert_eq!(project.creator.name, "minux");

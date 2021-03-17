@@ -334,6 +334,8 @@ pub struct WatchRepoResult {
     pub revision: Revision,
 }
 
+/// A resource that is watchable
+/// Currently supported [`WatchFileResult`] and [`WatchRepoResult`]
 pub(crate) trait Watchable: DeserializeOwned + Send {
     fn revision(&self) -> Revision;
 }

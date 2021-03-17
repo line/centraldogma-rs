@@ -2,9 +2,9 @@
 use std::{pin::Pin, time::Duration};
 
 use crate::{
-    client::status_unwrap,
     model::{Query, Revision, WatchFileResult, WatchRepoResult, Watchable},
-    path, Client, Error, RepoClient,
+    services::{path, status_unwrap},
+    Client, Error, RepoClient,
 };
 
 use futures::{Stream, StreamExt};
@@ -130,5 +130,83 @@ impl<'a> WatchService for RepoClient<'a> {
         let p = path::repo_watch_path(self.project, self.repo, path_pattern);
 
         Ok(watch_stream(self.client.clone(), p).boxed())
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use std::sync::atomic::{AtomicBool, Ordering};
+
+    use super::*;
+    use crate::model::{Entry, EntryContent};
+    use wiremock::{Mock, MockServer, Respond, ResponseTemplate, matchers::{method, path, header}};
+
+    struct MockResponse {
+        first_time: AtomicBool
+    }
+
+    impl Respond for MockResponse {
+        fn respond(&self, _req: &wiremock::Request) -> ResponseTemplate {
+            if self.first_time.swap(false, Ordering::SeqCst) {
+                println!("Called 1");
+                ResponseTemplate::new(304)
+                    .set_delay(Duration::from_millis(100))
+            } else {
+                println!("Called 2");
+                let resp = r#"{
+                    "revision":3,
+                    "entry":{
+                        "path":"/a.json",
+                        "type":"JSON",
+                        "content": {"a":"b"},
+                        "revision":3,
+                        "url": "/api/v1/projects/foo/repos/bar/contents/a.json"
+                    }
+                }"#;
+                ResponseTemplate::new(200)
+                    .set_delay(Duration::from_millis(100))
+                    .set_body_raw(resp, "application/json")
+            }
+        }
+    }
+
+    #[tokio::test]
+    async fn test_watch_file() {
+        let server = MockServer::start().await;
+        let resp = MockResponse { first_time: AtomicBool::new(true) };
+
+        Mock::given(method("GET"))
+            .and(path("/api/v1/projects/foo/repos/bar/contents/a.json"))
+            .and(header("if-none-match", "-1"))
+            .and(header("prefer", "wait=60"))
+            .and(header("Authorization", "Bearer anonymous"))
+            .respond_with(resp)
+            .expect(2)
+            .mount(&server)
+            .await;
+
+        let client = Client::new(&server.uri(), None).await.unwrap();
+        let stream = client
+            .repo("foo", "bar")
+            .watch_file_stream(&Query::identity("/a.json").unwrap())
+            .unwrap()
+            .take_until(tokio::time::sleep(Duration::from_secs(3)));
+        tokio::pin!(stream);
+
+        let result = stream.next().await;
+
+        server.reset().await;
+        let result = result.unwrap();
+        assert_eq!(result.revision, Revision::from(3));
+        assert_eq!(
+            result.entry,
+            Entry {
+                path: "/a.json".to_string(),
+                content: EntryContent::Json(serde_json::json!({"a":"b"})),
+                revision: Revision::from(3),
+                url: "/api/v1/projects/foo/repos/bar/contents/a.json".to_string(),
+                modified_at: None,
+            }
+        );
     }
 }

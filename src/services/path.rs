@@ -4,6 +4,16 @@ use crate::model::{Query, QueryType, Revision};
 
 const PATH_PREFIX: &str = "/api/v1";
 
+mod params {
+    pub const REVISION: &str = "revision";
+    pub const JSONPATH: &str = "jsonpath";
+    pub const PATH: &str = "path";
+    pub const PATH_PATTERN: &str = "pathPattern";
+    pub const MAX_COMMITS: &str = "maxCommits";
+    pub const FROM: &str = "from";
+    pub const TO: &str = "to";
+}
+
 fn normalize_path_pattern(path_pattern: &str) -> Cow<str> {
     if path_pattern.is_empty() {
         return Cow::Borrowed("/**");
@@ -73,7 +83,7 @@ pub(crate) fn list_contents_path(
     let len = url.len();
 
     form_urlencoded::Serializer::for_suffix(url, len)
-        .append_pair("revision", &revision.to_string())
+        .append_pair(params::REVISION, &revision.to_string())
         .finish()
 }
 
@@ -91,7 +101,7 @@ pub(crate) fn contents_path(
     let len = url.len();
 
     form_urlencoded::Serializer::for_suffix(url, len)
-        .append_pair("revision", &revision.to_string())
+        .append_pair(params::REVISION, &revision.to_string())
         .finish()
 }
 
@@ -108,11 +118,11 @@ pub(crate) fn content_path(
 
     let len = url.len();
     let mut serializer = form_urlencoded::Serializer::for_suffix(url, len);
-    serializer.append_pair("revision", &revision.to_string());
+    serializer.append_pair(params::REVISION, &revision.to_string());
 
     if let QueryType::JsonPath(expressions) = &query.r#type {
         for expression in expressions.iter() {
-            serializer.append_pair("jsonpath", expression);
+            serializer.append_pair(params::JSONPATH, expression);
         }
     }
 
@@ -137,9 +147,9 @@ pub(crate) fn content_commits_path(
 
     let len = url.len();
     form_urlencoded::Serializer::for_suffix(url, len)
-        .append_pair("path", path)
-        .append_pair("to", &to_rev.to_string())
-        .append_pair("maxCommits", &max_commits.to_string())
+        .append_pair(params::PATH, path)
+        .append_pair(params::TO, &to_rev.to_string())
+        .append_pair(params::MAX_COMMITS, &max_commits.to_string())
         .finish()
 }
 
@@ -158,13 +168,13 @@ pub(crate) fn content_compare_path(
     let len = url.len();
     let mut serializer = form_urlencoded::Serializer::for_suffix(url, len);
     serializer
-        .append_pair("path", &query.path)
-        .append_pair("from", &from_rev.to_string())
-        .append_pair("to", &to_rev.to_string());
+        .append_pair(params::PATH, &query.path)
+        .append_pair(params::FROM, &from_rev.to_string())
+        .append_pair(params::TO, &to_rev.to_string());
 
     if let QueryType::JsonPath(expressions) = &query.r#type {
         for expression in expressions.iter() {
-            serializer.append_pair("jsonpath", expression);
+            serializer.append_pair(params::JSONPATH, expression);
         }
     }
 
@@ -186,9 +196,9 @@ pub(crate) fn contents_compare_path(
     let path_pattern = normalize_path_pattern(path_pattern);
     let len = url.len();
     form_urlencoded::Serializer::for_suffix(url, len)
-        .append_pair("pathPattern", &path_pattern)
-        .append_pair("from", &from_rev.to_string())
-        .append_pair("to", &to_rev.to_string())
+        .append_pair(params::PATH_PATTERN, &path_pattern)
+        .append_pair(params::FROM, &from_rev.to_string())
+        .append_pair(params::TO, &to_rev.to_string())
         .finish()
 }
 
@@ -204,7 +214,7 @@ pub(crate) fn contents_push_path(
 
     let len = url.len();
     form_urlencoded::Serializer::for_suffix(url, len)
-        .append_pair("revision", &base_revision.to_string())
+        .append_pair(params::REVISION, &base_revision.to_string())
         .finish()
 }
 
@@ -219,7 +229,7 @@ pub(crate) fn content_watch_path(project_name: &str, repo_name: &str, query: &Qu
 
     if let QueryType::JsonPath(expressions) = &query.r#type {
         for expression in expressions.iter() {
-            serializer.append_pair("jsonpath", expression);
+            serializer.append_pair(params::JSONPATH, expression);
         }
     }
 
