@@ -147,7 +147,7 @@ pub struct ListEntry {
 }
 
 /// Type of a [`Query`]
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum QueryType {
     Identity,
     IdentityJson,
@@ -349,5 +349,33 @@ impl Watchable for WatchFileResult {
 impl Watchable for WatchRepoResult {
     fn revision(&self) -> Revision {
         self.revision
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn test_query_identity() {
+        let query = Query::identity("/a.json").unwrap();
+
+        assert_eq!(query.path, "/a.json");
+        assert_eq!(query.r#type, QueryType::Identity);
+    }
+
+    #[test]
+    fn test_query_identity_auto_fix_path() {
+        let query = Query::identity("a.json").unwrap();
+
+        assert_eq!(query.path, "/a.json");
+        assert_eq!(query.r#type, QueryType::Identity);
+    }
+
+    #[test]
+    fn test_query_reject_empty_path() {
+        let query = Query::identity("");
+
+        assert!(query.is_none());
     }
 }
