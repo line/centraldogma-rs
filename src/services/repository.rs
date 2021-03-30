@@ -141,15 +141,15 @@ mod test {
         Client,
     };
     use wiremock::{
+        matchers::{body_json, header, method, path, query_param},
         Mock, MockServer, ResponseTemplate,
-        matchers::{method, path, query_param, header, body_json},
     };
 
     #[tokio::test]
     async fn test_list_repos() {
         let server = MockServer::start().await;
-        let resp = ResponseTemplate::new(200)
-            .set_body_raw(r#"[{
+        let resp = ResponseTemplate::new(200).set_body_raw(
+            r#"[{
                 "name":"bar",
                 "creator":{"name":"minux", "email":"minux@m.x"},
                 "url":"/api/v1/projects/foo/repos/bar",
@@ -161,7 +161,9 @@ mod test {
                 "url":"/api/v1/projects/foo/repos/baz",
                 "createdAt":"a",
                 "headRevision":3
-            }]"#, "application/json");
+            }]"#,
+            "application/json",
+        );
         Mock::given(method("GET"))
             .and(path("/api/v1/projects/foo/repos"))
             .and(header("Authorization", "Bearer anonymous"))
@@ -229,8 +231,7 @@ mod test {
             "creator":{"name":"minux", "email":"minux@m.x"},
             "createdAt":"a",
             "headRevision": 2}"#;
-        let resp = ResponseTemplate::new(201)
-            .set_body_raw(resp, "application/json");
+        let resp = ResponseTemplate::new(201).set_body_raw(resp, "application/json");
 
         let repo_json = serde_json::json!({"name": "bar"});
         Mock::given(method("POST"))
@@ -295,8 +296,7 @@ mod test {
             "createdAt":"a",
             "url":"/api/v1/projects/foo/repos/bar",
             "headRevision": 2}"#;
-        let resp = ResponseTemplate::new(200)
-            .set_body_raw(resp, "application/json");
+        let resp = ResponseTemplate::new(200).set_body_raw(resp, "application/json");
         let unremove_json = serde_json::json!(
             [{"op": "replace", "path": "/status", "value": "active"}]
         );

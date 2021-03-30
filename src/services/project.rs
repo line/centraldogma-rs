@@ -118,15 +118,15 @@ impl ProjectService for Client {
 mod test {
     use super::*;
     use wiremock::{
+        matchers::{body_json, header, method, path, query_param},
         Mock, MockServer, ResponseTemplate,
-        matchers::{method, path, query_param, header, body_json},
     };
 
     #[tokio::test]
     async fn test_list_projects() {
         let server = MockServer::start().await;
-        let resp = ResponseTemplate::new(200)
-            .set_body_raw(r#"[{
+        let resp = ResponseTemplate::new(200).set_body_raw(
+            r#"[{
                 "name":"foo",
                 "creator":{"name":"minux", "email":"minux@m.x"},
                 "url":"/api/v1/projects/foo"
@@ -134,7 +134,9 @@ mod test {
                 "name":"bar",
                 "creator":{"name":"minux", "email":"minux@m.x"},
                 "url":"/api/v1/projects/bar"
-            }]"#, "application/json");
+            }]"#,
+            "application/json",
+        );
         Mock::given(method("GET"))
             .and(path("/api/v1/projects"))
             .and(header("Authorization", "Bearer anonymous"))
@@ -163,11 +165,13 @@ mod test {
     #[tokio::test]
     async fn test_list_removed_projects() {
         let server = MockServer::start().await;
-        let resp = ResponseTemplate::new(200)
-            .set_body_raw(r#"[
+        let resp = ResponseTemplate::new(200).set_body_raw(
+            r#"[
                 {"name":"foo"},
                 {"name":"bar"}
-            ]"#, "application/json");
+            ]"#,
+            "application/json",
+        );
         Mock::given(method("GET"))
             .and(path("/api/v1/projects"))
             .and(query_param("status", "removed"))
@@ -191,11 +195,13 @@ mod test {
     async fn test_create_project() {
         let server = MockServer::start().await;
         let project_json = serde_json::json!({"name": "foo"});
-        let resp = ResponseTemplate::new(201)
-            .set_body_raw(r#"{
+        let resp = ResponseTemplate::new(201).set_body_raw(
+            r#"{
                 "name":"foo",
                 "creator":{"name":"minux", "email":"minux@m.x"}
-            }"#, "application/json");
+            }"#,
+            "application/json",
+        );
         Mock::given(method("POST"))
             .and(path("/api/v1/projects"))
             .and(header("Authorization", "Bearer anonymous"))
@@ -249,13 +255,16 @@ mod test {
     #[tokio::test]
     async fn test_unremove_project() {
         let server = MockServer::start().await;
-        let unremove_json = serde_json::json!([{"op": "replace", "path": "/status", "value": "active"}]);
-        let resp = ResponseTemplate::new(201)
-            .set_body_raw(r#"{
+        let unremove_json =
+            serde_json::json!([{"op": "replace", "path": "/status", "value": "active"}]);
+        let resp = ResponseTemplate::new(201).set_body_raw(
+            r#"{
                 "name":"foo",
                 "creator":{"name":"minux", "email":"minux@m.x"},
                 "url":"/api/v1/projects/foo"
-            }"#, "application/json");
+            }"#,
+            "application/json",
+        );
         Mock::given(method("PATCH"))
             .and(path("/api/v1/projects/foo"))
             .and(header("Content-Type", "application/json-patch+json"))
