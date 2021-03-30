@@ -139,18 +139,20 @@ mod test {
 
     use super::*;
     use crate::model::{Entry, EntryContent};
-    use wiremock::{Mock, MockServer, Respond, ResponseTemplate, matchers::{method, path, header}};
+    use wiremock::{
+        matchers::{header, method, path},
+        Mock, MockServer, Respond, ResponseTemplate,
+    };
 
     struct MockResponse {
-        first_time: AtomicBool
+        first_time: AtomicBool,
     }
 
     impl Respond for MockResponse {
         fn respond(&self, _req: &wiremock::Request) -> ResponseTemplate {
             if self.first_time.swap(false, Ordering::SeqCst) {
                 println!("Called 1");
-                ResponseTemplate::new(304)
-                    .set_delay(Duration::from_millis(100))
+                ResponseTemplate::new(304).set_delay(Duration::from_millis(100))
             } else {
                 println!("Called 2");
                 let resp = r#"{
@@ -173,7 +175,9 @@ mod test {
     #[tokio::test]
     async fn test_watch_file() {
         let server = MockServer::start().await;
-        let resp = MockResponse { first_time: AtomicBool::new(true) };
+        let resp = MockResponse {
+            first_time: AtomicBool::new(true),
+        };
 
         Mock::given(method("GET"))
             .and(path("/api/v1/projects/foo/repos/bar/contents/a.json"))

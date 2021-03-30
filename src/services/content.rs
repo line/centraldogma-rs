@@ -1,7 +1,7 @@
 //! Content-related APIs
 use crate::{
     model::{Change, Commit, CommitMessage, Entry, ListEntry, PushResult, Query, Revision},
-    services::{path, status_unwrap},
+    services::{do_request, path},
     Error, RepoClient,
 };
 
@@ -86,7 +86,6 @@ pub trait ContentService {
         path_pattern: &str,
     ) -> Result<Vec<Change>, Error>;
 
-
     /// Pushes the specified [`Change`]s to the repository.
     async fn push(
         &self,
@@ -109,22 +108,14 @@ impl<'a> ContentService for RepoClient<'a> {
             None,
         )?;
 
-        let resp = self.client.request(req).await?;
-        let ok_resp = status_unwrap(resp).await?;
-        let result = ok_resp.json().await?;
-
-        Ok(result)
+        do_request(self.client, req).await
     }
 
     async fn get_file(&self, revision: Revision, query: &Query) -> Result<Entry, Error> {
         let p = path::content_path(self.project, self.repo, revision, query);
         let req = self.client.new_request(Method::GET, p, None)?;
 
-        let resp = self.client.request(req).await?;
-        let ok_resp = status_unwrap(resp).await?;
-        let result = ok_resp.json().await?;
-
-        Ok(result)
+        do_request(self.client, req).await
     }
 
     async fn get_files(&self, revision: Revision, path_pattern: &str) -> Result<Vec<Entry>, Error> {
@@ -134,11 +125,7 @@ impl<'a> ContentService for RepoClient<'a> {
             None,
         )?;
 
-        let resp = self.client.request(req).await?;
-        let ok_resp = status_unwrap(resp).await?;
-        let result = ok_resp.json().await?;
-
-        Ok(result)
+        do_request(&self.client, req).await
     }
 
     async fn get_history(
@@ -158,11 +145,7 @@ impl<'a> ContentService for RepoClient<'a> {
         );
         let req = self.client.new_request(Method::GET, p, None)?;
 
-        let resp = self.client.request(req).await?;
-        let ok_resp = status_unwrap(resp).await?;
-        let result = ok_resp.json().await?;
-
-        Ok(result)
+        do_request(&self.client, req).await
     }
 
     async fn get_diff(
@@ -174,11 +157,7 @@ impl<'a> ContentService for RepoClient<'a> {
         let p = path::content_compare_path(self.project, self.repo, from_rev, to_rev, query);
         let req = self.client.new_request(Method::GET, p, None)?;
 
-        let resp = self.client.request(req).await?;
-        let ok_resp = status_unwrap(resp).await?;
-        let result = ok_resp.json().await?;
-
-        Ok(result)
+        do_request(&self.client, req).await
     }
 
     async fn get_diffs(
@@ -191,11 +170,7 @@ impl<'a> ContentService for RepoClient<'a> {
             path::contents_compare_path(self.project, self.repo, from_rev, to_rev, path_pattern);
         let req = self.client.new_request(Method::GET, p, None)?;
 
-        let resp = self.client.request(req).await?;
-        let ok_resp = status_unwrap(resp).await?;
-        let result = ok_resp.json().await?;
-
-        Ok(result)
+        do_request(self.client, req).await
     }
 
     async fn push(
@@ -222,11 +197,7 @@ impl<'a> ContentService for RepoClient<'a> {
         let p = path::contents_push_path(self.project, self.repo, base_revision);
         let req = self.client.new_request(Method::POST, p, Some(body))?;
 
-        let resp = self.client.request(req).await?;
-        let ok_resp = status_unwrap(resp).await?;
-        let result = ok_resp.json().await?;
-
-        Ok(result)
+        do_request(self.client, req).await
     }
 }
 
@@ -238,18 +209,20 @@ mod test {
         Client,
     };
     use wiremock::{
+        matchers::{body_json, header, method, path, query_param},
         Mock, MockServer, ResponseTemplate,
-        matchers::{method, path, query_param, header, body_json},
     };
 
     #[tokio::test]
     async fn test_list_files() {
         let server = MockServer::start().await;
-        let resp = ResponseTemplate::new(200)
-            .set_body_raw(r#"[
+        let resp = ResponseTemplate::new(200).set_body_raw(
+            r#"[
                 {"path":"/a.json", "type":"JSON"},
                 {"path":"/b.txt", "type":"TEXT"}
-            ]"#, "application/json");
+            ]"#,
+            "application/json",
+        );
         Mock::given(method("GET"))
             .and(path("/api/v1/projects/foo/repos/bar/list/**"))
             .and(header("Authorization", "Bearer anonymous"))
@@ -276,11 +249,13 @@ mod test {
     #[tokio::test]
     async fn test_list_files_with_revision() {
         let server = MockServer::start().await;
-        let resp = ResponseTemplate::new(200)
-            .set_body_raw(r#"[
+        let resp = ResponseTemplate::new(200).set_body_raw(
+            r#"[
                 {"path":"/a.json", "type":"JSON"},
                 {"path":"/b.txt", "type":"TEXT"}
-            ]"#, "application/json");
+            ]"#,
+            "application/json",
+        );
         Mock::given(method("GET"))
             .and(path("/api/v1/projects/foo/repos/bar/list/**"))
             .and(query_param("revision", "2"))
@@ -308,14 +283,16 @@ mod test {
     #[tokio::test]
     async fn test_get_file() {
         let server = MockServer::start().await;
-        let resp = ResponseTemplate::new(200)
-            .set_body_raw(r#"{
+        let resp = ResponseTemplate::new(200).set_body_raw(
+            r#"{
                     "path":"/b.txt",
                     "type":"TEXT",
                     "revision":2,
                     "url": "/api/v1/projects/foo/repos/bar/contents/b.txt",
                     "content":"hello world~!"
-            }"#, "application/json");
+            }"#,
+            "application/json",
+        );
         Mock::given(method("GET"))
             .and(path("/api/v1/projects/foo/repos/bar/contents/b.txt"))
             .and(header("Authorization", "Bearer anonymous"))
@@ -339,14 +316,13 @@ mod test {
     async fn test_get_file_text_with_escape() {
         let server = MockServer::start().await;
         let content = "foo\nb\"rb\\z";
-        let resp = ResponseTemplate::new(200)
-            .set_body_json(serde_json::json!({
-                "path":"/b.txt",
-                "type":"TEXT",
-                "revision":2,
-                "url": "/api/v1/projects/foo/repos/bar/contents/b.txt",
-                "content":content
-            }));
+        let resp = ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "path":"/b.txt",
+            "type":"TEXT",
+            "revision":2,
+            "url": "/api/v1/projects/foo/repos/bar/contents/b.txt",
+            "content":content
+        }));
         Mock::given(method("GET"))
             .and(path("/api/v1/projects/foo/repos/bar/contents/b.txt"))
             .and(header("Authorization", "Bearer anonymous"))
@@ -369,14 +345,16 @@ mod test {
     #[tokio::test]
     async fn test_get_file_json() {
         let server = MockServer::start().await;
-        let resp = ResponseTemplate::new(200)
-            .set_body_raw(r#"{
+        let resp = ResponseTemplate::new(200).set_body_raw(
+            r#"{
                     "path":"/a.json",
                     "type":"JSON",
                     "revision":2,
                     "url": "/api/v1/projects/foo/repos/bar/contents/a.json",
                     "content":{"a":"b"}
-                }"#, "application/json");
+                }"#,
+            "application/json",
+        );
         Mock::given(method("GET"))
             .and(path("/api/v1/projects/foo/repos/bar/contents/a.json"))
             .and(header("Authorization", "Bearer anonymous"))
@@ -400,14 +378,16 @@ mod test {
     #[tokio::test]
     async fn test_get_file_json_path() {
         let server = MockServer::start().await;
-        let resp = ResponseTemplate::new(200)
-            .set_body_raw(r#"{
+        let resp = ResponseTemplate::new(200).set_body_raw(
+            r#"{
                     "path":"/a.json",
                     "type":"JSON",
                     "revision":2,
                     "url": "/api/v1/projects/foo/repos/bar/contents/a.json",
                     "content":"b"
-                }"#, "application/json");
+                }"#,
+            "application/json",
+        );
         Mock::given(method("GET"))
             .and(path("/api/v1/projects/foo/repos/bar/contents/a.json"))
             .and(query_param("jsonpath", "$.a"))
@@ -433,14 +413,16 @@ mod test {
     #[tokio::test]
     async fn test_get_file_json_path_and_revision() {
         let server = MockServer::start().await;
-        let resp = ResponseTemplate::new(200)
-            .set_body_raw(r#"{
+        let resp = ResponseTemplate::new(200).set_body_raw(
+            r#"{
                     "path":"/a.json",
                     "type":"JSON",
                     "revision":2,
                     "url": "/api/v1/projects/foo/repos/bar/contents/a.json",
                     "content":"b"
-                }"#, "application/json");
+                }"#,
+            "application/json",
+        );
         Mock::given(method("GET"))
             .and(path("/api/v1/projects/foo/repos/bar/contents/a.json"))
             .and(query_param("revision", "5"))
@@ -467,8 +449,8 @@ mod test {
     #[tokio::test]
     async fn test_get_files() {
         let server = MockServer::start().await;
-        let resp = ResponseTemplate::new(200)
-            .set_body_raw(r#"[{
+        let resp = ResponseTemplate::new(200).set_body_raw(
+            r#"[{
                     "path":"/a.json",
                     "type":"JSON",
                     "revision":2,
@@ -480,7 +462,9 @@ mod test {
                     "revision":2,
                     "url": "/api/v1/projects/foo/repos/bar/contents/b.txt",
                     "content":"hello world~!"
-                }]"#, "application/json");
+                }]"#,
+            "application/json",
+        );
         Mock::given(method("GET"))
             .and(path("/api/v1/projects/foo/repos/bar/contents/**"))
             .and(header("Authorization", "Bearer anonymous"))
@@ -510,8 +494,8 @@ mod test {
     #[tokio::test]
     async fn test_get_history() {
         let server = MockServer::start().await;
-        let resp = ResponseTemplate::new(200)
-            .set_body_raw(r#"[{
+        let resp = ResponseTemplate::new(200).set_body_raw(
+            r#"[{
                 "revision":1,
                 "author":{"name":"minux", "email":"minux@m.x"},
                 "commitMessage":{"summary":"Add a.json"}
@@ -519,7 +503,9 @@ mod test {
                 "revision":2,
                 "author":{"name":"minux", "email":"minux@m.x"},
                 "commitMessage":{"summary":"Edit a.json"}
-            }]"#, "application/json");
+            }]"#,
+            "application/json",
+        );
         Mock::given(method("GET"))
             .and(path("/api/v1/projects/foo/repos/bar/commits/-2"))
             .and(query_param("to", "-1"))
@@ -572,8 +558,8 @@ mod test {
     #[tokio::test]
     async fn test_get_diff() {
         let server = MockServer::start().await;
-        let resp = ResponseTemplate::new(200)
-            .set_body_raw(r#"{
+        let resp = ResponseTemplate::new(200).set_body_raw(
+            r#"{
                 "path":"/a.json",
                 "type":"APPLY_JSON_PATCH",
                 "content":[{
@@ -582,7 +568,9 @@ mod test {
                     "oldValue":"bar",
                     "value":"baz"
                 }]
-            }"#, "application/json");
+            }"#,
+            "application/json",
+        );
         Mock::given(method("GET"))
             .and(path("/api/v1/projects/foo/repos/bar/compare"))
             .and(query_param("from", "3"))
@@ -619,8 +607,8 @@ mod test {
     #[tokio::test]
     async fn test_get_diffs() {
         let server = MockServer::start().await;
-        let resp = ResponseTemplate::new(200)
-            .set_body_raw(r#"[{
+        let resp = ResponseTemplate::new(200).set_body_raw(
+            r#"[{
                 "path":"/a.json",
                 "type":"APPLY_JSON_PATCH",
                 "content":[{
@@ -633,7 +621,9 @@ mod test {
                 "path":"/b.txt",
                 "type":"APPLY_TEXT_PATCH",
                 "content":"--- /b.txt\n+++ /b.txt\n@@ -1,1 +1,1 @@\n-foo\n+bar"
-            }]"#, "application/json");
+            }]"#,
+            "application/json",
+        );
         Mock::given(method("GET"))
             .and(path("/api/v1/projects/foo/repos/bar/compare"))
             .and(query_param("from", "1"))
@@ -678,11 +668,13 @@ mod test {
     #[tokio::test]
     async fn test_push() {
         let server = MockServer::start().await;
-        let resp = ResponseTemplate::new(200)
-            .set_body_raw(r#"{
+        let resp = ResponseTemplate::new(200).set_body_raw(
+            r#"{
                 "revision":2,
                 "pushedAt":"2017-05-22T00:00:00Z"
-            }"#, "application/json");
+            }"#,
+            "application/json",
+        );
 
         let changes = vec![Change {
             path: "/a.json".to_string(),
@@ -728,11 +720,13 @@ mod test {
     #[tokio::test]
     async fn test_push_two_files() {
         let server = MockServer::start().await;
-        let resp = ResponseTemplate::new(200)
-            .set_body_raw(r#"{
+        let resp = ResponseTemplate::new(200).set_body_raw(
+            r#"{
                 "revision":3,
                 "pushedAt":"2017-05-22T00:00:00Z"
-            }"#, "application/json");
+            }"#,
+            "application/json",
+        );
 
         let changes = vec![
             Change {

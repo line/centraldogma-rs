@@ -5,9 +5,9 @@ pub mod repository;
 pub mod watch;
 
 use reqwest::Response;
-use serde::{Deserialize, Serialize};
+use serde::{de::DeserializeOwned, Deserialize, Serialize};
 
-use crate::Error;
+use crate::{Client, Error};
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -16,7 +16,7 @@ struct ErrorMessage {
 }
 
 /// convert HTTP Response with status < 200 and > 300 to Error
-pub(crate) async fn status_unwrap(resp: Response) -> Result<Response, Error> {
+async fn status_unwrap(resp: Response) -> Result<Response, Error> {
     match resp.status().as_u16() {
         code if !(200..300).contains(&code) => {
             let err_body = resp.text().await?;
@@ -27,4 +27,15 @@ pub(crate) async fn status_unwrap(resp: Response) -> Result<Response, Error> {
         }
         _ => Ok(resp),
     }
+}
+
+pub(super) async fn do_request<T: DeserializeOwned>(
+    client: &Client,
+    req: reqwest::Request,
+) -> Result<T, Error> {
+    let resp = client.request(req).await?;
+    let ok_resp = status_unwrap(resp).await?;
+    let result = ok_resp.json().await?;
+
+    Ok(result)
 }
