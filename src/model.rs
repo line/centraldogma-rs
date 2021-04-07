@@ -17,29 +17,40 @@ use serde::{de::DeserializeOwned, Deserialize, Serialize};
 /// A revision with a negative integer is called 'relative revision'.
 /// By contrast, a revision with a positive integer is called 'absolute revision'.
 #[derive(Debug, Serialize, Deserialize, Clone, Copy, PartialEq, Eq)]
-pub struct Revision(i64);
+pub struct Revision(Option<i64>);
 
 impl Revision {
-    pub fn as_i64(&self) -> i64 {
+    pub fn as_i64(&self) -> Option<i64> {
         self.0
     }
 }
 
 impl std::fmt::Display for Revision {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.0)
+        match self.0 {
+            Some(n) => write!(f, "{}", n),
+            None => write!(f, ""),
+        }
+    }
+}
+
+impl AsRef<Option<i64>> for Revision {
+    fn as_ref(&self) -> &Option<i64> {
+        &self.0
     }
 }
 
 impl Revision {
     /// Revision `-1`, also known as `HEAD`.
-    pub const HEAD: Revision = Revision(-1);
+    pub const HEAD: Revision = Revision(Some(-1));
     /// Revision `1`, also known as `INIT`.
-    pub const INIT: Revision = Revision(1);
+    pub const INIT: Revision = Revision(Some(1));
+    /// Omitted revision, behavior is decided on server side, usually [`HEAD`]
+    pub const DEFAULT: Revision = Revision(None);
 
     /// Create a new instance with the specified revision number.
     pub fn from(i: i64) -> Self {
-        Revision(i)
+        Revision(Some(i))
     }
 }
 
@@ -211,8 +222,12 @@ impl Query {
     /// [JSON path expressions](https://github.com/json-path/JsonPath/blob/master/README.md)
     /// to the content.
     /// Returns `None` if path is empty or does not end with `.json`.
+    /// Returns `None` if any of the path expression provided is empty.
     pub fn of_json_path(path: &str, exprs: Vec<String>) -> Option<Self> {
         if !path.to_lowercase().ends_with("json") {
+            return None;
+        }
+        if exprs.iter().any(|expr| expr.is_empty()) {
             return None;
         }
         Some(Query {

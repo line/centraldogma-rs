@@ -175,7 +175,21 @@ fn t<'a>(ctx: &'a mut TestContext) -> Pin<Box<dyn Future<Output = Result<()>> + 
                 Revision::INIT,
                 Revision::HEAD,
                 "/**",
-                20
+                None
+            )
+            .await
+            .context(here!("Failed to get history"))?;
+
+            println!("History: {:?}", &commits);
+        }
+
+        // Get history without from-to revision
+        {
+            let commits = r.get_history(
+                Revision::DEFAULT,
+                Revision::DEFAULT,
+                "/**",
+                None
             )
             .await
             .context(here!("Failed to get history"))?;

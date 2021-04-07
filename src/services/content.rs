@@ -58,7 +58,7 @@ pub trait ContentService {
         from_rev: Revision,
         to_rev: Revision,
         path: &str,
-        max_commits: u32,
+        max_commits: Option<u32>,
     ) -> Result<Vec<Commit>, Error>;
 
     /// Returns the diff of a file between two [`Revision`]s.
@@ -133,7 +133,7 @@ impl<'a> ContentService for RepoClient<'a> {
         from_rev: Revision,
         to_rev: Revision,
         path: &str,
-        max_commits: u32,
+        max_commits: Option<u32>,
     ) -> Result<Vec<Commit>, Error> {
         let p = path::content_commits_path(
             self.project,
@@ -518,7 +518,7 @@ mod test {
         let client = Client::new(&server.uri(), None).await.unwrap();
         let commits = client
             .repo("foo", "bar")
-            .get_history(Revision::from(-2), Revision::HEAD, "/**", 2)
+            .get_history(Revision::from(-2), Revision::HEAD, "/**", Some(2))
             .await
             .unwrap();
 
@@ -549,7 +549,7 @@ mod test {
 
         server.reset().await;
         for (p, e) in commits.iter().zip(expected.iter()) {
-            assert_eq!(p.revision.as_i64(), e.0);
+            assert_eq!(p.revision.as_i64(), Some(e.0));
             assert_eq!(p.author, e.1);
             assert_eq!(p.commit_message, e.2);
         }
