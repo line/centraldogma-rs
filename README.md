@@ -115,22 +115,4 @@ fn main() {
 
 ## Contributing
 
-### Run test suite
-
-Run local centraldogma server with docker-compose
-
-```bash
-docker-compose up -d
-```
-
-Run all tests
-
-```bash
-cargo test
-```
-
-Run unit test only (centraldogma server not needed)
-
-```bash
-cargo test --lib
-```
+See [CONTRIBUTING.md](CONTRIBUTING.md).
