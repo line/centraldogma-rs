@@ -5,6 +5,8 @@ authors = ["Hoang Luu <luu.hoang@linecorp.com>"]
 edition = "2018"
 description = "CentralDogma client for Rust"
 license = "Apache-2.0"
+documentation = "https://docs.rs/centraldogma"
+homepage = "https://github.com/line/centraldogma-rs"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
