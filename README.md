@@ -44,10 +44,10 @@ fn main() {
 
 Typed API calls are provided behind traits:
 
-* [`ProjectService`](https://TODO)
-* [`RepoService`](https://TODO)
-* [`ContentService`](https://TODO)
-* [`WatchService`](https://TODO)
+* [`ProjectService`](https://docs.rs/centraldogma/0.1.0/centraldogma/trait.ProjectService.html)
+* [`RepoService`](https://docs.rs/centraldogma/0.1.0/centraldogma/trait.RepoService.html)
+* [`ContentService`](https://docs.rs/centraldogma/0.1.0/centraldogma/trait.ContentService.html)
+* [`WatchService`](https://docs.rs/centraldogma/0.1.0/centraldogma/trait.WatchService.html)
 
 #### Examples
 
