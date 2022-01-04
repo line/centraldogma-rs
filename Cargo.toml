@@ -1,8 +1,8 @@
 [package]
 name = "centraldogma"
-version = "0.1.0"
+version = "0.1.1"
 authors = ["Hoang Luu <luu.hoang@linecorp.com>"]
-edition = "2018"
+edition = "2021"
 description = "CentralDogma client for Rust"
 license = "Apache-2.0"
 documentation = "https://docs.rs/centraldogma"
