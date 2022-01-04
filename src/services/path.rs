@@ -276,10 +276,10 @@ pub(crate) fn repo_watch_path(project_name: &str, repo_name: &str, path_pattern:
 
 fn add_pair<'a, T>(s: &mut form_urlencoded::Serializer<'a, T>, key: &str, value: &str)
 where
-    T: form_urlencoded::Target
+    T: form_urlencoded::Target,
 {
     if !value.is_empty() {
-       s.append_pair(key, value);
+        s.append_pair(key, value);
     }
 }
 
@@ -289,34 +289,119 @@ mod test {
 
     #[test]
     fn test_content_commits_path() {
-        let full_arg_path = content_commits_path("foo", "bar", Revision::from(1), Revision::from(2), "/a.json", Some(5));
-        assert_eq!(full_arg_path, "/api/v1/projects/foo/repos/bar/commits/1?path=%2Fa.json&to=2&maxCommits=5");
+        let full_arg_path = content_commits_path(
+            "foo",
+            "bar",
+            Revision::from(1),
+            Revision::from(2),
+            "/a.json",
+            Some(5),
+        );
+        assert_eq!(
+            full_arg_path,
+            "/api/v1/projects/foo/repos/bar/commits/1?path=%2Fa.json&to=2&maxCommits=5"
+        );
 
-        let omitted_max_commmit_path = content_commits_path("foo", "bar", Revision::from(1), Revision::from(2), "/a.json", None);
-        assert_eq!(omitted_max_commmit_path, "/api/v1/projects/foo/repos/bar/commits/1?path=%2Fa.json&to=2");
+        let omitted_max_commmit_path = content_commits_path(
+            "foo",
+            "bar",
+            Revision::from(1),
+            Revision::from(2),
+            "/a.json",
+            None,
+        );
+        assert_eq!(
+            omitted_max_commmit_path,
+            "/api/v1/projects/foo/repos/bar/commits/1?path=%2Fa.json&to=2"
+        );
 
-        let omitted_from_to_path = content_commits_path("foo", "bar", Revision::DEFAULT, Revision::DEFAULT, "/a.json", Some(5));
-        assert_eq!(omitted_from_to_path, "/api/v1/projects/foo/repos/bar/commits/?path=%2Fa.json&maxCommits=5");
+        let omitted_from_to_path = content_commits_path(
+            "foo",
+            "bar",
+            Revision::DEFAULT,
+            Revision::DEFAULT,
+            "/a.json",
+            Some(5),
+        );
+        assert_eq!(
+            omitted_from_to_path,
+            "/api/v1/projects/foo/repos/bar/commits/?path=%2Fa.json&maxCommits=5"
+        );
 
-        let omitted_all_path = content_commits_path("foo", "bar", Revision::DEFAULT, Revision::DEFAULT, "/a.json", None);
-        assert_eq!(omitted_all_path, "/api/v1/projects/foo/repos/bar/commits/?path=%2Fa.json");
+        let omitted_all_path = content_commits_path(
+            "foo",
+            "bar",
+            Revision::DEFAULT,
+            Revision::DEFAULT,
+            "/a.json",
+            None,
+        );
+        assert_eq!(
+            omitted_all_path,
+            "/api/v1/projects/foo/repos/bar/commits/?path=%2Fa.json"
+        );
     }
 
     #[test]
     fn test_content_compare_path() {
-        let full_arg_path = content_compare_path("foo", "bar", Revision::from(1), Revision::from(2), &Query::identity("/a.json").unwrap());
-        assert_eq!(full_arg_path, "/api/v1/projects/foo/repos/bar/compare?path=%2Fa.json&from=1&to=2");
+        let full_arg_path = content_compare_path(
+            "foo",
+            "bar",
+            Revision::from(1),
+            Revision::from(2),
+            &Query::identity("/a.json").unwrap(),
+        );
+        assert_eq!(
+            full_arg_path,
+            "/api/v1/projects/foo/repos/bar/compare?path=%2Fa.json&from=1&to=2"
+        );
 
-        let omitted_from_path = content_compare_path("foo", "bar", Revision::DEFAULT, Revision::from(2), &Query::identity("/a.json").unwrap());
-        assert_eq!(omitted_from_path, "/api/v1/projects/foo/repos/bar/compare?path=%2Fa.json&to=2");
+        let omitted_from_path = content_compare_path(
+            "foo",
+            "bar",
+            Revision::DEFAULT,
+            Revision::from(2),
+            &Query::identity("/a.json").unwrap(),
+        );
+        assert_eq!(
+            omitted_from_path,
+            "/api/v1/projects/foo/repos/bar/compare?path=%2Fa.json&to=2"
+        );
 
-        let omitted_to_path = content_compare_path("foo", "bar", Revision::from(1), Revision::DEFAULT, &Query::identity("/a.json").unwrap());
-        assert_eq!(omitted_to_path, "/api/v1/projects/foo/repos/bar/compare?path=%2Fa.json&from=1");
+        let omitted_to_path = content_compare_path(
+            "foo",
+            "bar",
+            Revision::from(1),
+            Revision::DEFAULT,
+            &Query::identity("/a.json").unwrap(),
+        );
+        assert_eq!(
+            omitted_to_path,
+            "/api/v1/projects/foo/repos/bar/compare?path=%2Fa.json&from=1"
+        );
 
-        let omitted_all_path = content_compare_path("foo", "bar", Revision::DEFAULT, Revision::DEFAULT, &Query::identity("/a.json").unwrap());
-        assert_eq!(omitted_all_path, "/api/v1/projects/foo/repos/bar/compare?path=%2Fa.json");
+        let omitted_all_path = content_compare_path(
+            "foo",
+            "bar",
+            Revision::DEFAULT,
+            Revision::DEFAULT,
+            &Query::identity("/a.json").unwrap(),
+        );
+        assert_eq!(
+            omitted_all_path,
+            "/api/v1/projects/foo/repos/bar/compare?path=%2Fa.json"
+        );
 
-        let with_json_query = content_compare_path("foo", "bar", Revision::DEFAULT, Revision::DEFAULT, &Query::of_json_path("/a.json", vec!["a".to_string()]).unwrap());
-        assert_eq!(with_json_query, "/api/v1/projects/foo/repos/bar/compare?path=%2Fa.json&jsonpath=a");
+        let with_json_query = content_compare_path(
+            "foo",
+            "bar",
+            Revision::DEFAULT,
+            Revision::DEFAULT,
+            &Query::of_json_path("/a.json", vec!["a".to_string()]).unwrap(),
+        );
+        assert_eq!(
+            with_json_query,
+            "/api/v1/projects/foo/repos/bar/compare?path=%2Fa.json&jsonpath=a"
+        );
     }
 }
