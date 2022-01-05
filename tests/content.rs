@@ -197,8 +197,6 @@ fn t<'a>(ctx: &'a mut TestContext) -> Pin<Box<dyn Future<Output = Result<()>> + 
             println!("History: {:?}", &commits);
         }
 
-
-
         // Get multiple files
         {
             let entries = r.get_files(
@@ -266,7 +264,6 @@ fn t<'a>(ctx: &'a mut TestContext) -> Pin<Box<dyn Future<Output = Result<()>> + 
                 here!("Diff content incorrect")
             );
         }
-
 
         // Get multiple file diff
         {
