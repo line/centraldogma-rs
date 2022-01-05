@@ -265,7 +265,6 @@ fn t<'a>(ctx: &'a mut TestContext) -> Pin<Box<dyn Future<Output = Result<()>> + 
             );
         }
 
-
         // Get multiple file diff
         {
             let diffs = r.get_diffs(

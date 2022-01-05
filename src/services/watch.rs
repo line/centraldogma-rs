@@ -14,6 +14,7 @@ const DEFAULT_TIMEOUT: Duration = Duration::from_secs(60);
 const DELAY_ON_SUCCESS: Duration = Duration::from_secs(1);
 const MAX_FAILED_COUNT: usize = 5; // Max base wait time 2 << 5 = 64 secs
 const JITTER_RATE: f32 = 0.2;
+const FAIL_COUNT_CEIL: usize = 10;
 
 async fn request_watch<D: Watchable>(client: &Client, req: Request) -> Result<Option<D>, Error> {
     let resp = client.request(req).await?;
@@ -27,10 +28,9 @@ async fn request_watch<D: Watchable>(client: &Client, req: Request) -> Result<Op
 }
 
 fn delay_time_for(failed_count: usize) -> Duration {
-    let base_time_ms = (2 << failed_count) * 1000;
+    let base_time_ms = failed_count.min(FAIL_COUNT_CEIL) * 1000;
     let jitter = (fastrand::f32() * JITTER_RATE * base_time_ms as f32) as u64;
-
-    Duration::from_millis(base_time_ms + jitter)
+    Duration::from_millis(base_time_ms as u64 + jitter)
 }
 
 struct WatchState {
@@ -53,6 +53,7 @@ fn watch_stream<D: Watchable>(client: Client, path: String) -> impl Stream<Item 
         if let Some(d) = state.success_delay.take() {
             tokio::time::sleep(d).await;
         }
+
         loop {
             let req = match state.client.new_watch_request(
                 Method::GET,
@@ -68,6 +69,8 @@ fn watch_stream<D: Watchable>(client: Client, path: String) -> impl Stream<Item 
             };
 
             let resp: Result<Option<D>, _> = request_watch(&state.client, req).await;
+
+            // handle response and decide next polling, we don't want to abuse CentralDogma server
             let next_delay = match resp {
                 // Send Ok data out
                 Ok(Some(watch_result)) => {
@@ -90,6 +93,7 @@ fn watch_stream<D: Watchable>(client: Client, path: String) -> impl Stream<Item 
                     delay_time_for(state.failed_count)
                 }
             };
+
             // Delay
             tokio::time::sleep(next_delay).await;
         }
