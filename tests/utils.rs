@@ -5,6 +5,6 @@ macro_rules! here {
             "{}: {}",
             concat!("at ", file!(), ":", line!(), ":", column!()),
             $e
-        );
+        )
     };
 }
