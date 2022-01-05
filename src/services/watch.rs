@@ -12,9 +12,8 @@ use reqwest::{Method, Request, StatusCode};
 
 const DEFAULT_TIMEOUT: Duration = Duration::from_secs(60);
 const DELAY_ON_SUCCESS: Duration = Duration::from_secs(1);
-const MAX_FAILED_COUNT: usize = 5; // Max base wait time 2 << 5 = 64 secs
 const JITTER_RATE: f32 = 0.2;
-const FAIL_COUNT_CEIL: usize = 10;
+const MAX_BASE_TIME_MS: usize = 10_000; // 10sec = 10_000millis
 
 async fn request_watch<D: Watchable>(client: &Client, req: Request) -> Result<Option<D>, Error> {
     let resp = client.request(req).await?;
@@ -28,7 +27,7 @@ async fn request_watch<D: Watchable>(client: &Client, req: Request) -> Result<Op
 }
 
 fn delay_time_for(failed_count: usize) -> Duration {
-    let base_time_ms = failed_count.min(FAIL_COUNT_CEIL) * 1000;
+    let base_time_ms = MAX_BASE_TIME_MS.min(failed_count * 1000);
     let jitter = (fastrand::f32() * JITTER_RATE * base_time_ms as f32) as u64;
     Duration::from_millis(base_time_ms as u64 + jitter)
 }
@@ -75,21 +74,19 @@ fn watch_stream<D: Watchable>(client: Client, path: String) -> impl Stream<Item 
                 // Send Ok data out
                 Ok(Some(watch_result)) => {
                     state.last_known_revision = Some(watch_result.revision());
-                    state.failed_count = 0;
+                    state.failed_count = 0; // reset fail count
                     state.success_delay = Some(DELAY_ON_SUCCESS);
 
                     return Some((watch_result, state));
                 }
                 Ok(None) => {
-                    state.failed_count = 0;
+                    state.failed_count = 0; // reset fail count
                     Duration::from_secs(1)
                 }
                 Err(Error::HttpClient(e)) if e.is_timeout() => Duration::from_secs(1),
                 Err(e) => {
                     log::debug!("Request error: {}", e);
-                    if state.failed_count < MAX_FAILED_COUNT {
-                        state.failed_count += 1;
-                    }
+                    state.failed_count += 1;
                     delay_time_for(state.failed_count)
                 }
             };
