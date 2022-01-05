@@ -11,7 +11,7 @@ Full documentation is available at https://docs.rs/centraldogma
 Add `centraldogma` crate and version to Cargo.toml.
 
 ```toml
-centraldogma = "0.1.0"
+centraldogma = "0.1"
 ```
 
 #### Async support with tokio
