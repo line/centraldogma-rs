@@ -104,7 +104,7 @@ impl<'a> ContentService for RepoClient<'a> {
     ) -> Result<Vec<ListEntry>, Error> {
         let req = self.client.new_request(
             Method::GET,
-            path::list_contents_path(self.project, self.repo, revision, &path_pattern),
+            path::list_contents_path(self.project, self.repo, revision, path_pattern),
             None,
         )?;
 
@@ -121,11 +121,11 @@ impl<'a> ContentService for RepoClient<'a> {
     async fn get_files(&self, revision: Revision, path_pattern: &str) -> Result<Vec<Entry>, Error> {
         let req = self.client.new_request(
             Method::GET,
-            path::contents_path(self.project, self.repo, revision, &path_pattern),
+            path::contents_path(self.project, self.repo, revision, path_pattern),
             None,
         )?;
 
-        do_request(&self.client, req).await
+        do_request(self.client, req).await
     }
 
     async fn get_history(
@@ -145,7 +145,7 @@ impl<'a> ContentService for RepoClient<'a> {
         );
         let req = self.client.new_request(Method::GET, p, None)?;
 
-        do_request(&self.client, req).await
+        do_request(self.client, req).await
     }
 
     async fn get_diff(
@@ -157,7 +157,7 @@ impl<'a> ContentService for RepoClient<'a> {
         let p = path::content_compare_path(self.project, self.repo, from_rev, to_rev, query);
         let req = self.client.new_request(Method::GET, p, None)?;
 
-        do_request(&self.client, req).await
+        do_request(self.client, req).await
     }
 
     async fn get_diffs(

@@ -50,7 +50,7 @@ impl Client {
     /// `token` string for authentication.
     /// Only visible ASCII characters (32-127) are permitted as token.
     pub async fn new(base_url: &str, token: Option<&str>) -> Result<Self, Error> {
-        let url = url::Url::parse(&base_url)?;
+        let url = url::Url::parse(base_url)?;
         let http_client = reqwest::Client::builder().user_agent("cd-rs").build()?;
 
         let mut header_value = HeaderValue::from_str(&format!(
