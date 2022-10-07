@@ -76,7 +76,11 @@ fn main() {
 ##### Push
 
 ```rust
-use centraldogma::{Client, ContentService};
+use centraldogma::{
+    Client, ContentService,
+    model::{Revision, Change, ChangeContent, CommitMessage},
+};
+use serde_json;
 
 #[tokio::main]
 fn main() {
