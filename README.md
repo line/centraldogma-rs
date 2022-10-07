@@ -54,7 +54,10 @@ Typed API calls are provided behind traits:
 ##### Get File
 
 ```rust
-use centraldogma::{Client, ContentService};
+use centraldogma::{
+    Client, ContentService,
+    model::{Revision, Query},
+};
 
 #[tokio::main]
 fn main() {
@@ -63,7 +66,7 @@ fn main() {
 
     let file = client
         .repo("project", "repository")
-        .get_file(Revision::HEAD, Query::of_text("/a.yml"))
+        .get_file(Revision::HEAD, &Query::of_text("/a.yml").unwrap())
         .await
         .unwrap();
     // your code ...
