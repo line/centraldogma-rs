@@ -27,11 +27,11 @@ tokio = { version = "1.2.0", features = ["full"] }
 
 Create a new client to make API to CentralDogma using the `Client` struct.
 
-```rust
+```rust,no_run
 use centraldogma::Client;
 
 #[tokio::main]
-fn main() {
+async fn main() {
     // with token
     let client = Client::new("http://localhost:36462", Some("token")).await.unwrap();
     // without token
@@ -53,14 +53,14 @@ Typed API calls are provided behind traits:
 
 ##### Get File
 
-```rust
+```rust,no_run
 use centraldogma::{
     Client, ContentService,
     model::{Revision, Query},
 };
 
 #[tokio::main]
-fn main() {
+async fn main() {
     // without token
     let client = Client::new("http://localhost:36462", None).await.unwrap();
 
@@ -75,7 +75,7 @@ fn main() {
 
 ##### Push
 
-```rust
+```rust,no_run
 use centraldogma::{
     Client, ContentService,
     model::{Revision, Change, ChangeContent, CommitMessage},
@@ -83,7 +83,7 @@ use centraldogma::{
 use serde_json;
 
 #[tokio::main]
-fn main() {
+async fn main() {
     let client = Client::new("http://localhost:36462", None).await.unwrap();
     let changes = vec![Change {
         path: "/a.json".to_string(),
@@ -98,17 +98,19 @@ fn main() {
         )
         .await
         .unwrap();
+}
 ```
 
 ##### Watch file change
 
-```rust
-use centraldogma::{Client, WatchService};
+```rust,no_run
+use centraldogma::{Client, WatchService, model::Query};
+use futures::StreamExt;
 
 #[tokio::main]
-fn main() {
+async fn main() {
     let client = Client::new("http://localhost:36462", None).await.unwrap();
-    let stream = client
+    let mut stream = client
         .repo("foo", "bar")
         .watch_file_stream(&Query::identity("/a.json").unwrap())
         .unwrap();
@@ -117,7 +119,8 @@ fn main() {
         while let Some(result) = stream.next().await {
             // your code ...
         }
-    })
+    });
+}
 ```
 
 ## Contributing

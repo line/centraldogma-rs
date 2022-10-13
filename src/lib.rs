@@ -1,3 +1,4 @@
+#![doc = include_str!("../README.md")]
 mod client;
 pub mod model;
 mod services;
