@@ -45,7 +45,7 @@ impl Revision {
     pub const HEAD: Revision = Revision(Some(-1));
     /// Revision `1`, also known as `INIT`.
     pub const INIT: Revision = Revision(Some(1));
-    /// Omitted revision, behavior is decided on server side, usually [`HEAD`]
+    /// Omitted revision, behavior is decided on server side, usually [`Revision::HEAD`]
     pub const DEFAULT: Revision = Revision(None);
 
     /// Create a new instance with the specified revision number.

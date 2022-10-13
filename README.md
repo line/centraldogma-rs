@@ -2,7 +2,7 @@
 
 Official Rust Client for [Central Dogma](https://line.github.io/centraldogma/).
 
-Full documentation is available at https://docs.rs/centraldogma
+Full documentation is available at <https://docs.rs/centraldogma>
 
 ## Getting started
 
