@@ -123,7 +123,7 @@ fn watch_file_stream_test<'a>(
             content: ChangeContent::UpsertJson(json!({"a": "c"})),
         }];
         let new_push = async move {
-            tokio::time::sleep(Duration::from_millis(1)).await;
+            tokio::time::sleep(Duration::from_millis(100)).await;
             r.push(Revision::HEAD, new_commit_msg, new_change).await
         };
 
@@ -170,7 +170,7 @@ fn watch_repo_stream_test<'a>(
             content: ChangeContent::UpsertJson(json!({"a": "c"})),
         }];
         let new_push = async move {
-            tokio::time::sleep(Duration::from_millis(10)).await;
+            tokio::time::sleep(Duration::from_millis(100)).await;
             r.push(Revision::HEAD, new_commit_msg, new_change).await
         };
 
