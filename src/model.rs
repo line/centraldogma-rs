@@ -40,6 +40,13 @@ impl AsRef<Option<i64>> for Revision {
     }
 }
 
+/// Create a new instance with the specified revision number.
+impl From<i64> for Revision {
+    fn from(value: i64) -> Self {
+        Self(Some(value))
+    }
+}
+
 impl Revision {
     /// Revision `-1`, also known as `HEAD`.
     pub const HEAD: Revision = Revision(Some(-1));
@@ -47,11 +54,6 @@ impl Revision {
     pub const INIT: Revision = Revision(Some(1));
     /// Omitted revision, behavior is decided on server side, usually [`Revision::HEAD`]
     pub const DEFAULT: Revision = Revision(None);
-
-    /// Create a new instance with the specified revision number.
-    pub fn from(i: i64) -> Self {
-        Revision(Some(i))
-    }
 }
 
 /// Creator of a project or repository or commit
